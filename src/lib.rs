@@ -27,7 +27,7 @@ where
     Ok(())
 }
 
-pub fn chain_iter(series: Vec<char>, how_many: usize) -> impl Iterator<Item = (usize, char)> {
+fn chain_iter(series: Vec<char>, how_many: usize) -> impl Iterator<Item = (usize, char)> {
     let space = ' ';
     let series: Vec<char> = (0..how_many - 1).fold(series.clone(), |acc, _| {
         acc.into_iter()
@@ -45,4 +45,19 @@ fn map_value(input_value: usize, threshold: usize) -> usize {
     } else {
         (threshold * (sector + 1)) - input_value
     }
+}
+
+// the unlimited power of trait object B)
+pub fn sparkle(h_char: Vec<char>, how_many: usize) -> Box<dyn Fn(usize)> {
+    Box::new(move |mapped_value: usize| {
+        for (i, ch) in chain_iter(h_char.clone(), how_many) {
+            let should_print_char =
+                (mapped_value % 2 == 0 && i % 2 == 0) || (mapped_value % 2 != 0 && i % 2 != 0);
+            if should_print_char {
+                print!("{}", ch);
+            } else {
+                print!(" ");
+            }
+        }
+    })
 }
