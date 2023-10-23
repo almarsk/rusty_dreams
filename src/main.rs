@@ -1,44 +1,43 @@
-use slug::slugify;
+// if it gets more complicated, I will refactor this, but for now, I import using a star
+use rust_course::*;
+use std::env;
+mod my_error;
+use my_error::build_error;
 
-use std::{collections::HashMap, env};
+// I think I preferred my approach from hw2
+// I am following the assignment, so I broke up my hashmap of closures into functions
+// but now there is a little more repetition and I am a bit confused about some things:
+//              placement of eprinting the operation
+//              multiple calls of env::args() (if main is only supposed to handle command arg)
+//              Where exactly I was supposed to use the format! macro
+//              I ended up not putting the ? operator after the modifying functions calls
+//
+// I am a little unhappy about the fact that some error get printed out inside an extra Err variant
+//
+// The error handling taught me new stuff though!
+// I hope my build_error function isn't entirely mimo mísu
+// I did it this way, because simply returning the Err(Box...) was of type Result<_, Err...>
+// and the Ok variant inference wasn't getting along with the prescribed output
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 3 {
-        println!("E R R O R - not enuff args");
-        return;
-    }
-    // I am looking forward to get further insight into how the Box dyn trick stuff works and why
-    // type declaration was Clippys idea
-    type Instructions<'a> = HashMap<&'a str, Box<dyn FnOnce(String) -> String>>;
-    let mut options: Instructions = HashMap::new();
-    options.insert("lowercase", Box::new(|text| text.to_lowercase()));
-    options.insert("uppercase", Box::new(|text| text.to_uppercase()));
-
-    #[allow(clippy::redundant_closure)]
-    // https://github.com/rust-lang/rust-clippy/issues/3071
-    options.insert("slugify", Box::new(|text| slugify(text)));
-    options.insert("no-spaces", Box::new(|text| text.replace(' ', "")));
-    options.insert(
-        "ale-ironicky",
-        Box::new(|text| {
-            text.chars()
-                .enumerate()
-                .fold(String::new(), |mut sparkle, (i, c)| {
-                    match i % 2 == 0 {
-                        true => sparkle.push(c.to_lowercase().next().unwrap()),
-                        false => sparkle.push(c.to_uppercase().next().unwrap()),
-                    };
-                    sparkle
-                })
-        }),
-    );
-    options.insert("reverse", Box::new(|text| text.chars().rev().collect()));
-
-    if let Some(transmute) = options.remove(args[1].as_str()) {
-        let input = args[2].clone();
-        println!("{}", transmute(input));
+    let args = env::args().collect::<Vec<String>>();
+    if args.len() > 1 {
+        let result = match args[1].as_str() {
+            "lowercase" => to_lowercase(),
+            "uppercase" => to_uppercase(),
+            "slugify" => to_slugified(),
+            "no-spaces" => no_spaces(),
+            "ale-ironicky" => ale_ironicky(),
+            "reverse" => reverse(),
+            // second arg is path to csv
+            "csv" => csv(),
+            _ => build_error("invalid commands".to_string()),
+        };
+        match result {
+            Ok(i) => println!("{}", i),
+            Err(e) => eprintln!("{:?}", e),
+        }
     } else {
-        println!("E R R O R - unknown instruction")
+        eprintln!("{:?}", build_error("missing command".to_string()))
     }
 }
