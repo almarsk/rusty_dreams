@@ -2,7 +2,6 @@ use slug::slugify;
 mod parse_csv;
 use parse_csv::parse_into_ascii_table;
 mod my_error;
-use my_error::build_error;
 use std::{env, error::Error};
 
 pub fn to_lowercase() -> Result<String, Box<dyn Error>> {
@@ -50,7 +49,7 @@ pub fn csv() -> Result<String, Box<dyn Error>> {
 fn parse_second_arg() -> Result<String, Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
-        build_error("not enough args".to_string())
+        todo!("spin up concurrent interactive mode, command prompt")
     } else {
         Ok(args[2].clone())
     }

@@ -1,8 +1,6 @@
-// if it gets more complicated, I will refactor this, but for now, I import using a star
 use rust_course::*;
 use std::env;
 mod my_error;
-use my_error::build_error;
 
 // I think I preferred my approach from hw2
 // I am following the assignment, so I broke up my hashmap of closures into functions
@@ -29,15 +27,14 @@ fn main() {
             "no-spaces" => no_spaces(),
             "ale-ironicky" => ale_ironicky(),
             "reverse" => reverse(),
-            // second arg is path to csv
             "csv" => csv(),
-            _ => build_error("invalid commands".to_string()),
+            _ => todo!("spin up concurrent interactive mode, no prompt"),
         };
         match result {
             Ok(i) => println!("{}", i),
             Err(e) => eprintln!("{:?}", e),
         }
     } else {
-        eprintln!("{:?}", build_error("missing command".to_string()))
+        todo!("spin up concurrent interactive mode, no prompt")
     }
 }
