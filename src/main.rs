@@ -29,7 +29,6 @@ fn main() {
             "no-spaces" => no_spaces(),
             "ale-ironicky" => ale_ironicky(),
             "reverse" => reverse(),
-            // second arg is path to csv
             "csv" => csv(),
             _ => build_error("invalid commands".to_string()),
         };
