@@ -1,58 +1,78 @@
-use slug::slugify;
+use rustyline::{error::ReadlineError::Interrupted, history, Editor};
+use std::sync::mpsc;
+use std::thread;
+pub mod command;
+use command::Command;
+pub mod parse_execute;
+use parse_execute::{execute_command, parse_command};
+pub mod modifications;
 mod parse_csv;
-use parse_csv::parse_into_ascii_table;
-use std::sync::Arc;
 use std::{env, error::Error};
 
-pub fn to_lowercase(interactive_input: Option<&str>) -> Result<String, Arc<dyn Error>> {
-    let text = parse_second_arg(interactive_input)?;
-    Ok(text.to_lowercase())
-}
-pub fn to_uppercase(interactive_input: Option<&str>) -> Result<String, Arc<dyn Error>> {
-    let text = parse_second_arg(interactive_input)?;
-    Ok(text.to_uppercase())
-}
-pub fn to_slugified(interactive_input: Option<&str>) -> Result<String, Arc<dyn Error>> {
-    let text = parse_second_arg(interactive_input)?;
-    Ok(slugify(text))
-}
-pub fn no_spaces(interactive_input: Option<&str>) -> Result<String, Arc<dyn Error>> {
-    let text = parse_second_arg(interactive_input)?;
-    Ok(text.replace(' ', ""))
-}
-pub fn ale_ironicky(interactive_input: Option<&str>) -> Result<String, Arc<dyn Error>> {
-    let text = parse_second_arg(interactive_input)?;
-    let output = text
-        .chars()
-        .enumerate()
-        .fold(String::new(), |mut sparkle, (i, c)| {
-            let transformed_char = if i % 2 == 0 {
-                c.to_lowercase().next().unwrap()
+pub fn interactive_mode(command: Option<String>) {
+    let mut rl: Editor<(), history::FileHistory> = Editor::new().unwrap();
+    let mut prompt = command.map(|c| format!("{} ", c));
+
+    let (tx, rx) = mpsc::channel::<(Option<Command>, String)>();
+
+    let process_command = thread::spawn(move || loop {
+        let readline = if let Some(i) = prompt.take() {
+            rl.readline_with_initial("", (&i, ""))
+        } else {
+            rl.readline("")
+        };
+        match readline {
+            Ok(i) => {
+                let mut iter = i.splitn(2, ' ');
+                let (command_string, input_string) = {
+                    let c = iter.next().unwrap_or_default().to_string();
+                    let i = iter.next().unwrap_or_default().to_string();
+                    (c, i)
+                };
+                match parse_command(command_string) {
+                    Ok(c) => tx.send((Some(c), input_string)).unwrap(),
+                    Err(e) => {
+                        eprintln!("{:?}", e);
+                    }
+                };
+            }
+            Err(e) => match e {
+                Interrupted => {
+                    tx.send((None, String::from(""))).unwrap();
+                    break;
+                }
+                _ => eprintln!("{e:?}"),
+            },
+        }
+    });
+    let modify_command = thread::spawn(move || loop {
+        if let Ok((c, input)) = rx.recv() {
+            if let Some(command) = c {
+                modify(command, input)
             } else {
-                c.to_uppercase().next().unwrap()
-            };
-            sparkle.push(transformed_char);
-            sparkle
-        });
-    Ok(output)
-}
-pub fn reverse(interactive_input: Option<&str>) -> Result<String, Arc<dyn Error>> {
-    let text = parse_second_arg(interactive_input)?;
-    Ok(text.chars().rev().collect())
-}
-pub fn csv(interactive_input: Option<&str>) -> Result<String, Arc<dyn Error>> {
-    let text = parse_second_arg(interactive_input)?;
-    let parsed = parse_into_ascii_table(text)?;
-    Ok(parsed)
+                break;
+            }
+        }
+    });
+    let _ = modify_command.join();
+    let _ = process_command.join();
 }
 
-fn parse_second_arg(interactive_input: Option<&str>) -> Result<String, Arc<dyn Error>> {
+pub fn modify(command: Command, input: String) {
+    match execute_command(&command, input.as_str()) {
+        Ok(r) => println!("{}\n", r),
+        Err(e) => eprintln!("{}", e),
+    };
+}
+
+pub fn parse_second_arg(interactive_input: Option<&str>) -> Result<String, Box<dyn Error>> {
     if let Some(i) = interactive_input {
         Ok(i.to_string())
     } else {
         let args: Vec<String> = env::args().collect();
         if args.len() < 3 {
-            todo!("spin up concurrent interactive mode, command prompt")
+            interactive_mode(Some(args[1].clone()));
+            std::process::exit(0);
         } else {
             Ok(args[2].clone())
         }
