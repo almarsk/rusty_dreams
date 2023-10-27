@@ -1,0 +1,4 @@
+   Compiling rust-course v0.1.0 (/Users/almarsk/Documents/hekovani/rust/rusty_dreams)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.36s
+     Running `target/debug/rust-course`
+

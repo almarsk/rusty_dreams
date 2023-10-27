@@ -1,10 +1,9 @@
 use ascii_table::AsciiTable;
+use csv::Reader;
 use std::error::Error;
 
-pub fn parse_into_ascii_table(data: String) -> Result<String, Box<dyn Error>> {
-    let mut rdr = csv::ReaderBuilder::new()
-        .delimiter(b';')
-        .from_reader(data.as_bytes());
+pub fn parse_into_ascii_table(path: String) -> Result<String, Box<dyn Error>> {
+    let mut rdr = Reader::from_path(path)?;
 
     let mut data: Vec<Vec<String>> = Vec::new();
     for result in rdr.records() {
