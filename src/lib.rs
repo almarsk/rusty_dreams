@@ -13,8 +13,11 @@ pub fn interactive_mode(command: Option<String>) {
     let mut rl: Editor<(), history::FileHistory> = Editor::new().unwrap();
     let mut prompt = command.map(|c| format!("{} ", c));
 
-    let (tx, rx) = mpsc::channel::<(Option<Command>, String)>();
+    let (tx, rx) = mpsc::channel::<Option<(Command, String)>>();
 
+    // slightly beyond the scope of the assignment
+    // if only command is given and no input upon startup
+    // interactive mode is entered with the (modifiable) command ready
     let process_command = thread::spawn(move || loop {
         let readline = if let Some(i) = prompt.take() {
             rl.readline_with_initial("", (&i, ""))
@@ -30,24 +33,27 @@ pub fn interactive_mode(command: Option<String>) {
                     (c, i)
                 };
                 match parse_command(command_string) {
-                    Ok(c) => tx.send((Some(c), input_string)).unwrap(),
+                    // empty input string is still being sent to the processing command
+                    Ok(c) => tx.send(Some((c, input_string))).unwrap(),
                     Err(e) => {
-                        eprintln!("{:?}", e);
+                        eprintln!("{e:?}\n");
                     }
                 };
             }
             Err(e) => match e {
                 Interrupted => {
-                    tx.send((None, String::from(""))).unwrap();
+                    // Sending None to signal to the other thread to stop as well.
+                    // Otherwise I had to press ctrl+c twice
+                    tx.send(None).unwrap();
                     break;
                 }
-                _ => eprintln!("{e:?}"),
+                _ => eprintln!("{e:?}\n"),
             },
         }
     });
     let modify_command = thread::spawn(move || loop {
-        if let Ok((c, input)) = rx.recv() {
-            if let Some(command) = c {
+        if let Ok(m) = rx.recv() {
+            if let Some((command, input)) = m {
                 modify(command, input)
             } else {
                 break;

@@ -7,11 +7,11 @@ pub mod parse_csv;
 fn main() {
     let args = env::args().collect::<Vec<String>>();
     if args.len() > 1 {
-        #[allow(clippy::match_single_binding)]
         match parse_command(args[1].clone()) {
             Ok(c) => {
+                // parse_second_arg enters interactive mode if arg 2 is mising
                 let input = parse_second_arg(None).unwrap();
-                println!("{}", args[1..].join(" "));
+                println!("{}", args[1..3].join(" "));
                 modify(c, input)
             }
             Err(_) => interactive_mode(None),
