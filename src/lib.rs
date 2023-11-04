@@ -20,7 +20,7 @@ impl MessageType {
     }
 }
 
-pub fn handle_client(mut connection: TcpStream) -> MessageType {
+pub fn handle_client(connection: &mut TcpStream) -> MessageType {
     let mut len_bytes = [0u8; 4];
 
     connection.read_exact(&mut len_bytes).unwrap();
@@ -33,9 +33,13 @@ pub fn handle_client(mut connection: TcpStream) -> MessageType {
 }
 
 pub fn send_message(connection: &mut TcpStream, message: &MessageType) {
+    dbg!("inside sending message func");
+    dbg!(message);
+
     let serialized = message.serialize().unwrap();
 
     let len = serialized.len() as u32;
-    let _ = connection.write(&len.to_be_bytes()).unwrap();
+    dbg!(&len);
+    connection.write_all(&len.to_be_bytes()).unwrap();
     connection.write_all(&serialized).unwrap();
 }

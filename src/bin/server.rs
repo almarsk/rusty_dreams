@@ -1,7 +1,5 @@
-use std::{
-    collections::HashMap,
-    net::{SocketAddr, TcpListener, TcpStream},
-};
+use std::collections::HashMap;
+use std::net::{SocketAddr, TcpListener, TcpStream};
 
 use rusty_dreams::{handle_client, send_message, MessageType};
 
@@ -20,7 +18,9 @@ fn listen_and_broadcast(address: &str, broadcast: bool) {
         //connection.set_nonblocking(true).unwrap(); // todo
         clients.insert(addr, connection);
 
-        let my_message = handle_client(clients.get(&addr).unwrap().try_clone().unwrap()); // todo
+        let mut connection_wrapper = clients.get(&addr).unwrap().try_clone().unwrap();
+
+        let my_message = handle_client(&mut connection_wrapper); // todo
 
         if broadcast {
             broadcast_message(&mut clients, &my_message, addr);
