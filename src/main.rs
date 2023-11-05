@@ -1,6 +1,7 @@
 use rusty_dreams::{handle_client, send_message, MessageType};
-use std::io::{self, BufRead};
+use std::io;
 use std::net::TcpStream;
+use std::sync::mpsc;
 use std::{thread, time::Duration};
 
 fn main() {
@@ -10,30 +11,27 @@ fn main() {
         .set_nonblocking(true)
         .expect("set_nonblocking call failed");
 
-    loop {
-        thread::sleep(Duration::from_millis(50));
-        if let Ok(m) = handle_client(&mut connection) {
-            println!("{:?}", m)
-        }
+    let (tx, rx) = mpsc::channel();
 
+    let reading_thread = thread::spawn(move || loop {
         let stdin = io::stdin();
         let mut input = String::new();
         stdin.read_line(&mut input).expect("Failed to read line");
 
         let my_message = MessageType::Text(input);
-        send_message(&mut connection, &my_message);
+        tx.send(my_message).unwrap()
+    });
 
-        /*
-        let input_lines = stdin.lock().lines();
-        for line in input_lines {
-            match line {
-                Ok(input) => {
-                    let my_message = MessageType::Text(input);
-                    send_message(&mut connection, &my_message);
-                }
-                Err(e) => println!("{:?}", e),
-            }
+    let receive_and_send = thread::spawn(move || loop {
+        thread::sleep(Duration::from_millis(50));
+        if let Ok(m) = handle_client(&mut connection) {
+            println!("{:?}", m)
         }
-        */
-    }
+        while let Ok(my_message) = rx.try_recv() {
+            send_message(&mut connection, &my_message);
+        }
+    });
+
+    reading_thread.join().unwrap();
+    receive_and_send.join().unwrap();
 }
