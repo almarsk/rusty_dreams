@@ -1,6 +1,7 @@
 use bincode::Error as BincodeError;
 use serde::{Deserialize, Serialize};
 
+use std::error::Error;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 
@@ -20,26 +21,30 @@ impl MessageType {
     }
 }
 
-pub fn handle_client(connection: &mut TcpStream) -> MessageType {
+pub fn handle_client(connection: &mut TcpStream) -> Result<MessageType, Box<dyn Error>> {
     let mut len_bytes = [0u8; 4];
 
-    connection.read_exact(&mut len_bytes).unwrap();
-    let len = u32::from_be_bytes(len_bytes) as usize;
+    connection
+        .set_nonblocking(true)
+        .expect("set_nonblocking call failed");
 
-    let mut buffer = vec![0u8; len];
-    connection.read_exact(&mut buffer).unwrap();
-
-    MessageType::deserialize(&buffer).unwrap()
+    match connection.read_exact(&mut len_bytes) {
+        Ok(()) => {
+            let len = u32::from_be_bytes(len_bytes) as usize;
+            let mut buffer = vec![0u8; len];
+            connection.read_exact(&mut buffer)?;
+            let msg = MessageType::deserialize(&buffer)?;
+            println!("{:?}", msg);
+            Ok(msg)
+        }
+        Err(e) => Err(Box::new(e)),
+    }
 }
 
 pub fn send_message(connection: &mut TcpStream, message: &MessageType) {
-    dbg!("inside sending message func");
-    dbg!(message);
-
     let serialized = message.serialize().unwrap();
 
     let len = serialized.len() as u32;
-    dbg!(&len);
     connection.write_all(&len.to_be_bytes()).unwrap();
     connection.write_all(&serialized).unwrap();
 }
