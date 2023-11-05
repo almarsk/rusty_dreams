@@ -1,7 +1,10 @@
 use std::collections::HashMap;
+//use std::io::{self, ErrorKind};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::mpsc;
 use std::thread;
+
+use std::time::Duration;
 
 use rusty_dreams::{handle_client, send_message, MessageType};
 
@@ -16,7 +19,7 @@ fn listen_and_broadcast(address: SocketAddr) {
         let listener = TcpListener::bind(address).expect("Failed to bind to address");
 
         for connection in listener.incoming() {
-            dbg!("connection found");
+            eprintln!("connection found");
             let connection = connection.unwrap(); // todo
             let addr = connection.peer_addr().unwrap();
             tx.send((addr, connection)).unwrap();
@@ -28,24 +31,28 @@ fn listen_and_broadcast(address: SocketAddr) {
 
         loop {
             while let Ok((addr, connection)) = rx.try_recv() {
+                connection
+                    .set_nonblocking(true)
+                    .expect("set_nonblocking call failed");
                 clients.insert(addr, connection);
             }
 
             let messages: Vec<(SocketAddr, MessageType)> = clients
                 .iter_mut()
-                .filter_map(|(addr, connection)| {
-                    if let Ok(message) = handle_client(connection) {
+                .filter_map(|(addr, connection)| match handle_client(connection) {
+                    Ok(message) => {
                         println!("{:?}", message);
                         Some((*addr, message))
-                    } else {
-                        None
                     }
+                    Err(_) => None,
                 })
                 .collect();
 
             for (sender, message) in messages {
                 broadcast_message(&mut clients, &message, sender);
             }
+
+            thread::sleep(Duration::from_millis(50))
         }
     });
 

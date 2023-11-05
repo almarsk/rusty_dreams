@@ -24,17 +24,12 @@ impl MessageType {
 pub fn handle_client(connection: &mut TcpStream) -> Result<MessageType, Box<dyn Error>> {
     let mut len_bytes = [0u8; 4];
 
-    connection
-        .set_nonblocking(true)
-        .expect("set_nonblocking call failed");
-
     match connection.read_exact(&mut len_bytes) {
         Ok(()) => {
             let len = u32::from_be_bytes(len_bytes) as usize;
             let mut buffer = vec![0u8; len];
             connection.read_exact(&mut buffer)?;
             let msg = MessageType::deserialize(&buffer)?;
-            println!("{:?}", msg);
             Ok(msg)
         }
         Err(e) => Err(Box::new(e)),
@@ -43,8 +38,8 @@ pub fn handle_client(connection: &mut TcpStream) -> Result<MessageType, Box<dyn 
 
 pub fn send_message(connection: &mut TcpStream, message: &MessageType) {
     let serialized = message.serialize().unwrap();
-
     let len = serialized.len() as u32;
+    // was getting a harmless but annoying lint with the write method
     connection.write_all(&len.to_be_bytes()).unwrap();
     connection.write_all(&serialized).unwrap();
 }
