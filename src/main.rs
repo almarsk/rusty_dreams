@@ -17,6 +17,7 @@ fn main() {
         let stdin = io::stdin();
         stdin.read_line(&mut input).expect("Failed to read line");
         let my_message = MessageType::Text(input);
+        println!("{:?}", my_message);
         dbg!("send");
         send_message(&mut connection, &my_message);
     }

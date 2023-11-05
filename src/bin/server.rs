@@ -29,10 +29,8 @@ fn listen_and_broadcast(address: SocketAddr) {
         loop {
             while let Ok((addr, connection)) = rx.try_recv() {
                 clients.insert(addr, connection);
-                println!("{:?}", clients);
             }
 
-            dbg!(&clients);
             let messages: Vec<(SocketAddr, MessageType)> = clients
                 .iter_mut()
                 .filter_map(|(addr, connection)| {
@@ -45,7 +43,6 @@ fn listen_and_broadcast(address: SocketAddr) {
                 })
                 .collect();
 
-            dbg!(&messages);
             for (sender, message) in messages {
                 broadcast_message(&mut clients, &message, sender);
             }
