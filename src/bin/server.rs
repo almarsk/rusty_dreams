@@ -9,17 +9,23 @@ use std::time::Duration;
 use rusty_dreams::{handle_client, send_message, MessageType};
 
 fn main() {
-    listen_and_broadcast("127.0.0.1:11111".parse().unwrap())
+    listen_and_broadcast("0.0.0.0", "11111")
 }
 
-fn listen_and_broadcast(address: SocketAddr) {
+fn listen_and_broadcast(host: &str, port: &str) {
     let (tx, rx) = mpsc::channel();
+
+    let address: SocketAddr = if let Ok(a) = format!("{}:{}", host, port).parse() {
+        a
+    } else {
+        "127.0.0.1:11111".parse().unwrap()
+    };
 
     let listener_thread = thread::spawn(move || {
         let listener = TcpListener::bind(address).expect("Failed to bind to address");
 
         for connection in listener.incoming() {
-            eprintln!("connection found");
+            //eprintln!("connection found");
             let connection = connection.unwrap(); // todo
             let addr = connection.peer_addr().unwrap();
             tx.send((addr, connection)).unwrap();
@@ -41,7 +47,7 @@ fn listen_and_broadcast(address: SocketAddr) {
                 .iter_mut()
                 .filter_map(|(addr, connection)| match handle_client(connection) {
                     Ok(message) => {
-                        println!("{:?}", message);
+                        //println!("{:?}", message);
                         Some((*addr, message))
                     }
                     Err(_) => None,
