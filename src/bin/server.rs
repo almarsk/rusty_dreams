@@ -6,7 +6,7 @@ use std::thread;
 
 use std::time::Duration;
 
-use rusty_dreams::{handle_client, send_message, MessageType};
+use rusty_dreams::{handle_client, send_message, Message};
 
 fn main() {
     listen_and_broadcast("0.0.0.0", "11111")
@@ -25,9 +25,13 @@ fn listen_and_broadcast(host: &str, port: &str) {
         let listener = TcpListener::bind(address).expect("Failed to bind to address");
 
         for connection in listener.incoming() {
-            //eprintln!("connection found");
-            let connection = connection.unwrap(); // todo
+            let connection: TcpStream = if let Ok(c) = connection {
+                c
+            } else {
+                continue;
+            };
             let addr = connection.peer_addr().unwrap();
+            eprintln!("connection found, {}", addr);
             tx.send((addr, connection)).unwrap();
         }
     });
@@ -43,7 +47,7 @@ fn listen_and_broadcast(host: &str, port: &str) {
                 clients.insert(addr, connection);
             }
 
-            let messages: Vec<(SocketAddr, MessageType)> = clients
+            let messages: Vec<(SocketAddr, Message)> = clients
                 .iter_mut()
                 .filter_map(|(addr, connection)| match handle_client(connection) {
                     Ok(message) => {
@@ -68,11 +72,15 @@ fn listen_and_broadcast(host: &str, port: &str) {
 
 fn broadcast_message(
     clients: &mut HashMap<SocketAddr, TcpStream>,
-    message: &MessageType,
+    message: &Message,
     sender_address: SocketAddr,
 ) {
     clients
         .iter_mut()
         .filter(|c| *c.0 != sender_address)
-        .for_each(|(_, connection)| send_message(connection, message))
+        .for_each(|(_, connection)| {
+            if let Err(e) = send_message(connection, message) {
+                println!("{:?}", e)
+            }
+        })
 }

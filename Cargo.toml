@@ -10,3 +10,6 @@ default-run = "rusty_dreams"
 [dependencies]
 bincode = "1.3.3"
 serde = { version = "1.0.190", features = ['derive']}
+names = "0.14.0"
+crossterm = "0.25.0"
+chrono = "0.4"
