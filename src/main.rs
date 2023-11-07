@@ -1,13 +1,15 @@
 use crossterm::{cursor, execute, terminal};
-use rusty_dreams::now;
-use rusty_dreams::{handle_client, send_message, Message, MessageType};
-use std::io;
-use std::io::Write;
-use std::net::SocketAddr;
-use std::net::TcpStream;
+
+use std::error::Error;
+
+use std::io::{self, Read, Write};
+use std::net::{SocketAddr, TcpStream};
+use std::path::Path;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::{thread, time::Duration};
+
+use rusty_dreams::{full_now, handle_client, now, send_message, Message, MessageType};
 
 fn main() {
     send_and_receive("127.0.0.1", "11111")
@@ -21,7 +23,11 @@ fn send_and_receive(host: &str, port: &str) {
     };
 
     let nick = match std::env::args().nth(1) {
-        Some(n) => Arc::new(n),
+        Some(n) => Arc::new(if n.len() <= 14 {
+            n.to_string()
+        } else {
+            n.chars().take(14).collect() // Truncate the string
+        }),
         None => Arc::new(names::Generator::default().next().unwrap()),
     };
 
@@ -40,26 +46,22 @@ fn send_and_receive(host: &str, port: &str) {
         let stdin = io::stdin();
         let mut input = String::new();
         stdin.read_line(&mut input).expect("Failed to read line");
-        if input == ".quit\n" {
-            std::process::exit(0)
-        };
 
-        replace_last_line(nick_clone.as_str(), input.as_str());
+        let my_message: Result<Message, Box<dyn Error>> =
+            build_message(input.as_str(), nick_clone.as_str());
 
-        let nick_outgoing = format!("{}", nick_clone);
-        let my_message = Message::new(nick_outgoing, MessageType::Text(input));
-        tx.send(my_message).unwrap()
+        match my_message {
+            Ok(m) => tx.send(m).unwrap(),
+            Err(e) => {
+                eprintln!("{:?}", e);
+                print_nick(nick_clone.as_str(), None)
+            }
+        }
     });
 
     let receive_and_send = thread::spawn(move || loop {
         thread::sleep(Duration::from_millis(50));
         if let Ok(m) = handle_client(&mut connection) {
-            let local_addr: String = if let Ok(la) = connection.local_addr() {
-                la.to_string()
-            } else {
-                "default".to_string()
-            };
-
             let (nick_incoming, message, timestamp) = m.destructure();
 
             clear_last_line();
@@ -71,12 +73,12 @@ fn send_and_receive(host: &str, port: &str) {
                 }
                 MessageType::Image(_) => {
                     println!("{} Receiving image from {}", timestamp, nick_incoming);
-                    receive_and_save(message, local_addr)
+                    receive_and_save(message, nick_incoming).unwrap();
                 }
                 MessageType::File(name, content) => {
                     println!("{} Receiving {} from {}", timestamp, name, nick_incoming);
                     // to be able to destructure the file and print it's name
-                    receive_and_save(MessageType::File(name, content), local_addr)
+                    receive_and_save(MessageType::File(name, content), nick_incoming).unwrap();
                 }
             }
             print_nick(nick.as_str(), None)
@@ -92,15 +94,30 @@ fn send_and_receive(host: &str, port: &str) {
     receive_and_send.join().unwrap();
 }
 
-fn receive_and_save(message: MessageType, local_address: String) {
-    println!("{:?}", message);
-    println!("{}", local_address)
+fn receive_and_save(message: MessageType, nick: String) -> Result<(), Box<dyn Error>> {
+    let path = format!("media/{}", nick);
+    std::fs::create_dir_all(&path)?;
+
+    match message {
+        MessageType::File(name, file_content) => {
+            let file_path = Path::new(&path).join(name);
+            std::fs::write(file_path, file_content)?;
+        }
+        MessageType::Image(data) => {
+            let timestamp = full_now();
+            let file_path = Path::new(&path).join(timestamp);
+            std::fs::write(file_path, data)?;
+        }
+        _ => (),
+    }
+
+    Ok(())
 }
 
 fn print_nick(nick: &str, timestamp: Option<String>) {
     let time = match timestamp {
         Some(t) => t,
-        None => now(),
+        None => " ".repeat(8),
     };
     print!("{} {}: ", time, nick);
     io::stdout().flush().unwrap();
@@ -133,7 +150,67 @@ fn replace_last_line(nick: &str, input: &str) {
     print_nick(nick, None)
 }
 
-// todo make folder by ip address
-// image is saved in it with timestamp .png (find the crate)
+fn build_message(input: &str, nick: &str) -> Result<Message, Box<dyn Error>> {
+    if input.starts_with(".quit") {
+        std::process::exit(0)
+    } else if input.starts_with(".file") {
+        let parts: Vec<&str> = input.splitn(2, ' ').collect();
+        if parts.len() > 1 {
+            let path = Path::new(parts[1].trim_end());
+            let mut file = std::fs::File::open(path)?;
+            let mut file_contents = vec![];
+            file.read_to_end(&mut file_contents)?;
+
+            let file_name = if let Some(n) = path.file_name() {
+                n
+            } else {
+                return Err(Box::new(std::io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "invalid path",
+                )));
+            };
+            replace_last_line(
+                nick,
+                format!("Sending {}\n", file_name.to_string_lossy()).as_str(),
+            );
+            Ok(Message::new(
+                nick.to_string(),
+                MessageType::File(file_name.to_string_lossy().to_string(), file_contents),
+            ))
+        } else {
+            Err(Box::new(std::io::Error::new(
+                io::ErrorKind::NotFound,
+                "provide a path to file",
+            )))
+        }
+    } else if input.starts_with(".image") {
+        let parts: Vec<&str> = input.splitn(2, ' ').collect();
+        if parts.len() > 1 {
+            let path = Path::new(parts[1]);
+            let mut file = std::fs::File::open(path)?;
+            let mut file_contents = vec![];
+            file.read_to_end(&mut file_contents)?;
+
+            replace_last_line(nick, "Sending image...");
+            Ok(Message::new(
+                nick.to_string(),
+                MessageType::Image(file_contents),
+            ))
+        } else {
+            Err(Box::new(std::io::Error::new(
+                io::ErrorKind::NotFound,
+                "provide a path to file",
+            )))
+        }
+    } else {
+        replace_last_line(nick, input);
+        Ok(Message::new(
+            nick.to_string(),
+            MessageType::Text(input.to_string()),
+        ))
+    }
+}
+
 // todo errors
 // todo try parse messagetype to send other stuff than text
+// .png
