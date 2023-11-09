@@ -1,6 +1,5 @@
 use bincode::Error as BincodeError;
 use chrono::{DateTime, Local};
-
 use serde::{Deserialize, Serialize};
 
 use std::error::Error;
@@ -35,7 +34,7 @@ impl Message {
         Message {
             nick,
             content,
-            timestamp: now(),
+            timestamp: chat_now(),
         }
     }
     pub fn serialize(&self) -> Result<Vec<u8>, BincodeError> {
@@ -69,10 +68,10 @@ pub fn send_message(connection: &mut TcpStream, message: &Message) -> Result<(),
     let len = serialized.len() as u32;
     // was getting a harmless but annoying lint with the write method
     connection.write_all(&len.to_be_bytes())?;
-    connection.write_all(&serialized)?;
-    if let Err(e) = connection.flush() {
-        println!("{e:?}")
-    }
+    // these can unwrap because the question mark operator on the previous line
+    // makes or breaks all of these operations
+    connection.write_all(&serialized).unwrap();
+    connection.flush().unwrap();
     Ok(())
 }
 
@@ -81,7 +80,7 @@ pub fn full_now() -> String {
     current_time.format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
-pub fn now() -> String {
+pub fn chat_now() -> String {
     let current_time: DateTime<Local> = Local::now();
     current_time.format("%H:%M:%S").to_string()
 }

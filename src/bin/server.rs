@@ -23,7 +23,13 @@ fn listen_and_broadcast(host: &str, port: &str) {
 
     let listener_thread = thread::spawn(move || {
         // I guess as it stands if this fails, I really do want to panic
-        let listener = TcpListener::bind(address).expect("Failed to bind to address");
+        let listener = match TcpListener::bind(address) {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("{e}");
+                std::process::exit(1)
+            }
+        };
 
         for connection in listener.incoming() {
             let connection: TcpStream = if let Ok(c) = connection {
@@ -84,6 +90,7 @@ fn broadcast_message(
         .for_each(|(address, connection)| {
             if send_message(connection, message).is_err() {
                 clients_to_remove.push(*address);
+                // not sure why this prints only the second time after send_message is attempted to a closed tcpstream
                 println!("removing {}", address)
             }
         });

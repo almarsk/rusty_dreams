@@ -9,7 +9,7 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::{thread, time::Duration};
 
-use rusty_dreams::{full_now, handle_client, now, send_message, Message, MessageType};
+use rusty_dreams::{chat_now, full_now, handle_client, send_message, Message, MessageType};
 
 fn main() {
     send_and_receive("127.0.0.1", "11111")
@@ -22,6 +22,13 @@ fn send_and_receive(host: &str, port: &str) {
         "127.0.0.1:11111".parse().unwrap()
     };
 
+    let mut connection = match TcpStream::connect(address) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("{e}");
+            std::process::exit(1)
+        }
+    };
     let nick = match std::env::args().nth(1) {
         Some(n) => Arc::new(if n.len() <= 14 {
             n.to_string()
@@ -33,7 +40,6 @@ fn send_and_receive(host: &str, port: &str) {
 
     let nick_clone = nick.clone();
 
-    let mut connection = TcpStream::connect(address).unwrap();
     connection
         .set_nonblocking(true)
         .expect("set_nonblocking call failed");
@@ -48,12 +54,12 @@ fn send_and_receive(host: &str, port: &str) {
         stdin.read_line(&mut input).expect("Failed to read line");
 
         let my_message: Result<Message, Box<dyn Error>> =
-            build_message(input.as_str(), nick_clone.as_str());
+            get_msg(input.as_str(), nick_clone.as_str());
 
         match my_message {
             Ok(m) => tx.send(m).unwrap(),
             Err(e) => {
-                eprintln!("{:?}", e);
+                eprintln!("{}", e);
                 print_nick(nick_clone.as_str(), None)
             }
         }
@@ -85,7 +91,7 @@ fn send_and_receive(host: &str, port: &str) {
         }
         while let Ok(my_message) = rx.try_recv() {
             if let Err(e) = send_message(&mut connection, &my_message) {
-                eprintln!("{:?}", e);
+                eprintln!("{}", e);
                 print_nick(nick.as_str(), None)
             };
         }
@@ -94,6 +100,8 @@ fn send_and_receive(host: &str, port: &str) {
     reading_thread.join().unwrap();
     receive_and_send.join().unwrap();
 }
+
+// _______Functions_______
 
 fn receive_and_save(message: MessageType, nick: &str) -> Result<(), Box<dyn Error>> {
     let path = format!("media/{}", nick);
@@ -107,7 +115,7 @@ fn receive_and_save(message: MessageType, nick: &str) -> Result<(), Box<dyn Erro
         MessageType::Image(data) => {
             let timestamp = full_now();
             let file_path = Path::new(&path).join(timestamp);
-            std::fs::write(file_path, data)?;
+            std::fs::write(format!("{}.png", file_path.to_string_lossy()), data)?;
         }
         _ => (),
     }
@@ -145,64 +153,20 @@ fn replace_last_line(nick: &str, input: &str) {
         terminal::Clear(terminal::ClearType::CurrentLine),
     )
     .expect("Failed to clear last line");
-    print!("{} {}: ", now(), nick);
+    print!("{} {}: ", chat_now(), nick);
     move_to_message();
     print!("{}", input);
     print_nick(nick, None)
 }
 
-fn build_message(input: &str, nick: &str) -> Result<Message, Box<dyn Error>> {
-    if input.starts_with(".quit") {
+fn get_msg(input: &str, nick: &str) -> Result<Message, Box<dyn Error>> {
+    if input == ".quit" {
+        // this is probably not the best way to go about this
         std::process::exit(0)
-    } else if input.starts_with(".file") {
-        let parts: Vec<&str> = input.splitn(2, ' ').collect();
-        if parts.len() > 1 {
-            let path = Path::new(parts[1].trim_end());
-            let mut file = std::fs::File::open(path)?;
-            let mut file_contents = vec![];
-            file.read_to_end(&mut file_contents)?;
-
-            let file_name = if let Some(n) = path.file_name() {
-                n
-            } else {
-                return Err(Box::new(std::io::Error::new(
-                    io::ErrorKind::NotFound,
-                    "invalid path",
-                )));
-            };
-            replace_last_line(
-                nick,
-                format!("Sending {}\n", file_name.to_string_lossy()).as_str(),
-            );
-            Ok(Message::new(
-                nick.to_string(),
-                MessageType::File(file_name.to_string_lossy().to_string(), file_contents),
-            ))
-        } else {
-            Err(Box::new(std::io::Error::new(
-                io::ErrorKind::NotFound,
-                "provide a path to file",
-            )))
-        }
-    } else if input.starts_with(".image") {
-        let parts: Vec<&str> = input.splitn(2, ' ').collect();
-        if parts.len() > 1 {
-            let path = Path::new(parts[1]);
-            let mut file = std::fs::File::open(path)?;
-            let mut file_contents = vec![];
-            file.read_to_end(&mut file_contents)?;
-
-            replace_last_line(nick, "Sending image...");
-            Ok(Message::new(
-                nick.to_string(),
-                MessageType::Image(file_contents),
-            ))
-        } else {
-            Err(Box::new(std::io::Error::new(
-                io::ErrorKind::NotFound,
-                "provide a path to file",
-            )))
-        }
+    } else if input.starts_with(".file ") {
+        construct_message(nick, input, MessageType::File("".to_string(), vec![]))
+    } else if input.starts_with(".image ") {
+        construct_message(nick, input, MessageType::Image(vec![]))
     } else {
         replace_last_line(nick, input);
         Ok(Message::new(
@@ -212,6 +176,48 @@ fn build_message(input: &str, nick: &str) -> Result<Message, Box<dyn Error>> {
     }
 }
 
+fn construct_message(
+    nick: &str,
+    input: &str,
+    mess_type: MessageType,
+) -> Result<Message, Box<dyn Error>> {
+    let parts: Vec<&str> = input.splitn(2, ' ').collect();
+    if parts.len() > 1 {
+        let path = Path::new(parts[1].trim_end());
+        let mut file = std::fs::File::open(path)?;
+        let mut file_contents = vec![];
+        file.read_to_end(&mut file_contents)?;
+
+        let file_name = if let Some(n) = path.file_name() {
+            n
+        } else {
+            return Err(Box::new(std::io::Error::new(
+                io::ErrorKind::NotFound,
+                "invalid path",
+            )));
+        };
+        replace_last_line(
+            nick,
+            format!("Sending {}\n", file_name.to_string_lossy()).as_str(),
+        );
+        let content = match mess_type {
+            MessageType::File(_, _) => {
+                MessageType::File(file_name.to_string_lossy().to_string(), file_contents)
+            }
+            MessageType::Image(_) => MessageType::Image(file_contents),
+            _ => {
+                eprintln!("something fishy is goin on");
+                MessageType::Text("".to_string())
+            }
+        };
+        Ok(Message::new(nick.to_string(), content))
+    } else {
+        Err(Box::new(std::io::Error::new(
+            io::ErrorKind::NotFound,
+            "provide a path to file",
+        )))
+    }
+}
+
 // todo errors
-// todo try parse messagetype to send other stuff than text
 // .png
