@@ -16,7 +16,7 @@ pub enum MessageType {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
-    nick: String,
+    pub nick: String,
     content: MessageType,
     timestamp: String,
 }
@@ -70,6 +70,9 @@ pub fn send_message(connection: &mut TcpStream, message: &Message) -> Result<(),
     // was getting a harmless but annoying lint with the write method
     connection.write_all(&len.to_be_bytes())?;
     connection.write_all(&serialized)?;
+    if let Err(e) = connection.flush() {
+        println!("{e:?}")
+    }
     Ok(())
 }
 

@@ -22,6 +22,7 @@ fn listen_and_broadcast(host: &str, port: &str) {
     };
 
     let listener_thread = thread::spawn(move || {
+        // I guess as it stands if this fails, I really do want to panic
         let listener = TcpListener::bind(address).expect("Failed to bind to address");
 
         for connection in listener.incoming() {
@@ -75,12 +76,19 @@ fn broadcast_message(
     message: &Message,
     sender_address: SocketAddr,
 ) {
+    let mut clients_to_remove: Vec<SocketAddr> = vec![];
+
     clients
         .iter_mut()
         .filter(|c| *c.0 != sender_address)
-        .for_each(|(_, connection)| {
-            if let Err(e) = send_message(connection, message) {
-                println!("{:?}", e)
+        .for_each(|(address, connection)| {
+            if send_message(connection, message).is_err() {
+                clients_to_remove.push(*address);
+                println!("removing {}", address)
             }
-        })
+        });
+
+    clients_to_remove.into_iter().for_each(|invalid_conn| {
+        clients.remove(&invalid_conn);
+    })
 }

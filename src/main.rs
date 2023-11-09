@@ -73,19 +73,20 @@ fn send_and_receive(host: &str, port: &str) {
                 }
                 MessageType::Image(_) => {
                     println!("{} Receiving image from {}", timestamp, nick_incoming);
-                    receive_and_save(message, nick_incoming).unwrap();
+                    receive_and_save(message, nick.as_str()).unwrap();
                 }
                 MessageType::File(name, content) => {
                     println!("{} Receiving {} from {}", timestamp, name, nick_incoming);
                     // to be able to destructure the file and print it's name
-                    receive_and_save(MessageType::File(name, content), nick_incoming).unwrap();
+                    receive_and_save(MessageType::File(name, content), nick.as_str()).unwrap();
                 }
             }
             print_nick(nick.as_str(), None)
         }
         while let Ok(my_message) = rx.try_recv() {
             if let Err(e) = send_message(&mut connection, &my_message) {
-                println!("{:?}", e)
+                eprintln!("{:?}", e);
+                print_nick(nick.as_str(), None)
             };
         }
     });
@@ -94,7 +95,7 @@ fn send_and_receive(host: &str, port: &str) {
     receive_and_send.join().unwrap();
 }
 
-fn receive_and_save(message: MessageType, nick: String) -> Result<(), Box<dyn Error>> {
+fn receive_and_save(message: MessageType, nick: &str) -> Result<(), Box<dyn Error>> {
     let path = format!("media/{}", nick);
     std::fs::create_dir_all(&path)?;
 
@@ -134,7 +135,7 @@ fn clear_last_line() {
 }
 
 fn move_to_message() {
-    execute!(io::stdout(), cursor::MoveToColumn(28),).expect("Failed to move cursor")
+    execute!(io::stdout(), cursor::MoveToColumn(30),).expect("Failed to move cursor")
 }
 
 fn replace_last_line(nick: &str, input: &str) {
