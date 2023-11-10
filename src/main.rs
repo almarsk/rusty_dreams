@@ -160,7 +160,7 @@ fn replace_last_line(nick: &str, input: &str) {
 }
 
 fn get_msg(input: &str, nick: &str) -> Result<Message, Box<dyn Error>> {
-    if input == ".quit" {
+    if input == ".quit\n" {
         // this is probably not the best way to go about this
         std::process::exit(0)
     } else if input.starts_with(".file ") {
