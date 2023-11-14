@@ -1,3 +1,4 @@
 /target
 media/*
 !media/default
+.DS_store
