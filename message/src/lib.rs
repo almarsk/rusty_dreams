@@ -34,7 +34,7 @@ impl Message {
         Message {
             nick,
             content,
-            timestamp: chat_now(),
+            timestamp: chat_time_now(),
         }
     }
     pub fn serialize(&self) -> Result<Vec<u8>, BincodeError> {
@@ -75,12 +75,12 @@ pub fn send_message(connection: &mut TcpStream, message: &Message) -> Result<(),
     Ok(())
 }
 
-pub fn full_now() -> String {
+pub fn full_time_now() -> String {
     let current_time: DateTime<Local> = Local::now();
     current_time.format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
-pub fn chat_now() -> String {
+pub fn chat_time_now() -> String {
     let current_time: DateTime<Local> = Local::now();
     current_time.format("%H:%M:%S").to_string()
 }

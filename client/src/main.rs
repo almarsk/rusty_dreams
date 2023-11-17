@@ -9,7 +9,7 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::{thread, time::Duration};
 
-use rusty_dreams::{chat_now, full_now, handle_client, send_message, Message, MessageType};
+use message::{chat_time_now, full_time_now, handle_client, send_message, Message, MessageType};
 
 fn main() {
     send_and_receive("127.0.0.1", "11111")
@@ -104,7 +104,7 @@ fn send_and_receive(host: &str, port: &str) {
 // _______Functions_______
 
 fn receive_and_save(message: MessageType, nick: &str) -> Result<(), Box<dyn Error>> {
-    let path = format!("media/{}", nick);
+    let path = format!("media/users/{}", nick);
     std::fs::create_dir_all(&path)?;
 
     match message {
@@ -113,7 +113,7 @@ fn receive_and_save(message: MessageType, nick: &str) -> Result<(), Box<dyn Erro
             std::fs::write(file_path, file_content)?;
         }
         MessageType::Image(data) => {
-            let timestamp = full_now();
+            let timestamp = full_time_now();
             let file_path = Path::new(&path).join(timestamp);
             std::fs::write(format!("{}.png", file_path.to_string_lossy()), data)?;
         }
@@ -153,7 +153,7 @@ fn replace_last_line(nick: &str, input: &str) {
         terminal::Clear(terminal::ClearType::CurrentLine),
     )
     .expect("Failed to clear last line");
-    print!("{} {}: ", chat_now(), nick);
+    print!("{} {}: ", chat_time_now(), nick);
     move_to_message();
     print!("{}", input);
     print_nick(nick, None)

@@ -6,7 +6,7 @@ use std::thread;
 
 use std::time::Duration;
 
-use rusty_dreams::{handle_client, send_message, Message};
+use message::{handle_client, send_message, Message};
 
 fn main() {
     listen_and_broadcast("0.0.0.0", "11111")
