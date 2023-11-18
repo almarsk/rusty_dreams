@@ -16,7 +16,7 @@ pub enum MessageType {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
     pub nick: String,
-    content: MessageType,
+    pub content: MessageType,
     timestamp: String,
 }
 

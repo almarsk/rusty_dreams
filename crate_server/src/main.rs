@@ -1,18 +1,40 @@
+use clap::Parser;
+
 use std::collections::HashMap;
-//use std::io::{self, ErrorKind};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::mpsc;
 use std::thread;
-
 use std::time::Duration;
 
-use message::{handle_client, send_message, Message};
+use message::{handle_client, send_message, Message, MessageType};
 
-fn main() {
-    listen_and_broadcast("0.0.0.0", "11111")
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    #[arg(long, default_value_t = String::from("127.0.0.1"))]
+    host: String,
+    #[arg(long, default_value_t = String::from("11111"))]
+    port: String,
 }
 
-fn listen_and_broadcast(host: &str, port: &str) {
+impl Args {
+    fn deconstruct(self) -> (String, String) {
+        (self.host, self.port)
+    }
+}
+
+fn main() {
+    let (host, port) = Args::parse().deconstruct();
+
+    if let Err(e) = simple_logger::SimpleLogger::new().env().init() {
+        log::error!("{}", e);
+        std::process::exit(1)
+    } else {
+        listen_and_broadcast(host, port)
+    }
+}
+
+fn listen_and_broadcast(host: String, port: String) {
     let (tx, rx) = mpsc::channel();
 
     let address: SocketAddr = if let Ok(a) = format!("{}:{}", host, port).parse() {
@@ -22,14 +44,16 @@ fn listen_and_broadcast(host: &str, port: &str) {
     };
 
     let listener_thread = thread::spawn(move || {
-        // I guess as it stands if this fails, I really do want to panic
+        // I guess as it stands if this fails, I want to exit
         let listener = match TcpListener::bind(address) {
             Ok(t) => t,
             Err(e) => {
-                eprintln!("{e}");
+                log::error!("{}", e);
                 std::process::exit(1)
             }
         };
+
+        log::info!("server started on {}", address);
 
         for connection in listener.incoming() {
             let connection: TcpStream = if let Ok(c) = connection {
@@ -38,7 +62,7 @@ fn listen_and_broadcast(host: &str, port: &str) {
                 continue;
             };
             let addr = connection.peer_addr().unwrap();
-            eprintln!("connection found, {}", addr);
+            log::info!("connection found, {}", addr);
             tx.send((addr, connection)).unwrap();
         }
     });
@@ -58,7 +82,7 @@ fn listen_and_broadcast(host: &str, port: &str) {
                 .iter_mut()
                 .filter_map(|(addr, connection)| match handle_client(connection) {
                     Ok(message) => {
-                        //println!("{:?}", message);
+                        //log::info!("{:?}", message);
                         Some((*addr, message))
                     }
                     Err(_) => None,
@@ -84,6 +108,14 @@ fn broadcast_message(
 ) {
     let mut clients_to_remove: Vec<SocketAddr> = vec![];
 
+    let message_type = match message.content {
+        MessageType::Text(_) => "text",
+        MessageType::Image(_) => "image",
+        MessageType::File(_, _) => "file",
+    };
+
+    log::info!("broadcasting {} from {}", message_type, sender_address);
+
     clients
         .iter_mut()
         .filter(|c| *c.0 != sender_address)
@@ -91,7 +123,7 @@ fn broadcast_message(
             if send_message(connection, message).is_err() {
                 clients_to_remove.push(*address);
                 // not sure why this prints only the second time after send_message is attempted to a closed tcpstream
-                println!("removing {}", address)
+                log::info!("removing {}", address);
             }
         });
 

@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-    "client",
-    "server",
-    "message",
+    "crate_client",
+    "crate_server",
+    "crate_message",
 ]

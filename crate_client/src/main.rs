@@ -1,44 +1,69 @@
+use clap::Parser;
 use crossterm::{cursor, execute, terminal};
+use env_logger::Builder;
 
 use std::error::Error;
-
 use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::path::Path;
-use std::sync::mpsc;
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
 use std::{thread, time::Duration};
 
 use message::{chat_time_now, full_time_now, handle_client, send_message, Message, MessageType};
 
-fn main() {
-    send_and_receive("127.0.0.1", "11111")
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    #[arg(long, default_value_t = names::Generator::default().next().unwrap())]
+    nick: String,
+    #[arg(long, default_value_t = String::from("127.0.0.1"))]
+    host: String,
+    #[arg(long, default_value_t = String::from("11111"))]
+    port: String,
 }
 
-fn send_and_receive(host: &str, port: &str) {
+impl Args {
+    fn deconstruct(self) -> (String, String, String) {
+        (self.host, self.port, self.nick)
+    }
+}
+
+fn main() {
+    let (host, port, nick) = Args::parse().deconstruct();
+
+    Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{} {}",
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                record.args()
+            )
+        })
+        .init();
+
+    send_and_receive(host, port, nick)
+}
+
+fn send_and_receive(host: String, port: String, nick: String) {
     let address: SocketAddr = if let Ok(a) = format!("{}:{}", host, port).parse() {
         a
     } else {
+        log::error!("cant use {}:{}, going default", host, port);
         "127.0.0.1:11111".parse().unwrap()
     };
+
+    let nick_owned: Arc<String> = Arc::new(nick);
 
     let mut connection = match TcpStream::connect(address) {
         Ok(t) => t,
         Err(e) => {
-            eprintln!("{e}");
+            log::error!("{e}");
             std::process::exit(1)
         }
     };
-    let nick = match std::env::args().nth(1) {
-        Some(n) => Arc::new(if n.len() <= 14 {
-            n.to_string()
-        } else {
-            n.chars().take(14).collect() // Truncate the string
-        }),
-        None => Arc::new(names::Generator::default().next().unwrap()),
-    };
 
-    let nick_clone = nick.clone();
+    let nick_read = nick_owned.clone();
 
     connection
         .set_nonblocking(true)
@@ -46,7 +71,7 @@ fn send_and_receive(host: &str, port: &str) {
 
     let (tx, rx) = mpsc::channel();
 
-    print_nick(nick_clone.as_str(), None);
+    print_nick(nick_read.as_str(), None);
 
     let reading_thread = thread::spawn(move || loop {
         let stdin = io::stdin();
@@ -54,16 +79,18 @@ fn send_and_receive(host: &str, port: &str) {
         stdin.read_line(&mut input).expect("Failed to read line");
 
         let my_message: Result<Message, Box<dyn Error>> =
-            get_msg(input.as_str(), nick_clone.as_str());
+            get_msg(input.as_str(), nick_read.as_str());
 
         match my_message {
             Ok(m) => tx.send(m).unwrap(),
             Err(e) => {
-                eprintln!("{}", e);
-                print_nick(nick_clone.as_str(), None)
+                log::error!("{}", e);
+                print_nick(nick_read.clone().as_str(), None)
             }
         }
     });
+
+    let nick_receive = nick_owned.clone();
 
     let receive_and_send = thread::spawn(move || loop {
         thread::sleep(Duration::from_millis(50));
@@ -79,20 +106,21 @@ fn send_and_receive(host: &str, port: &str) {
                 }
                 MessageType::Image(_) => {
                     println!("{} Receiving image from {}", timestamp, nick_incoming);
-                    receive_and_save(message, nick.as_str()).unwrap();
+                    receive_and_save(message, nick_receive.as_str()).unwrap();
                 }
                 MessageType::File(name, content) => {
                     println!("{} Receiving {} from {}", timestamp, name, nick_incoming);
                     // to be able to destructure the file and print it's name
-                    receive_and_save(MessageType::File(name, content), nick.as_str()).unwrap();
+                    receive_and_save(MessageType::File(name, content), nick_receive.as_str())
+                        .unwrap();
                 }
             }
-            print_nick(nick.as_str(), None)
+            print_nick(nick_receive.as_str(), None)
         }
         while let Ok(my_message) = rx.try_recv() {
             if let Err(e) = send_message(&mut connection, &my_message) {
-                eprintln!("{}", e);
-                print_nick(nick.as_str(), None)
+                log::error!("{}", e);
+                print_nick(nick_receive.as_str(), None)
             };
         }
     });
@@ -128,6 +156,7 @@ fn print_nick(nick: &str, timestamp: Option<String>) {
         Some(t) => t,
         None => " ".repeat(8),
     };
+
     print!("{} {}: ", time, nick);
     io::stdout().flush().unwrap();
     move_to_message()
@@ -146,13 +175,17 @@ fn move_to_message() {
     execute!(io::stdout(), cursor::MoveToColumn(30),).expect("Failed to move cursor")
 }
 
-fn replace_last_line(nick: &str, input: &str) {
+fn clear_previous_line() {
     execute!(
         io::stdout(),
         cursor::MoveUp(1),
         terminal::Clear(terminal::ClearType::CurrentLine),
     )
     .expect("Failed to clear last line");
+}
+
+fn replace_last_line(nick: &str, input: &str) {
+    clear_previous_line();
     print!("{} {}: ", chat_time_now(), nick);
     move_to_message();
     print!("{}", input);
@@ -206,7 +239,7 @@ fn construct_message(
             }
             MessageType::Image(_) => MessageType::Image(file_contents),
             _ => {
-                eprintln!("something fishy is goin on");
+                log::warn!("something fishy is goin on");
                 MessageType::Text("".to_string())
             }
         };
@@ -218,6 +251,3 @@ fn construct_message(
         )))
     }
 }
-
-// todo errors
-// .png
