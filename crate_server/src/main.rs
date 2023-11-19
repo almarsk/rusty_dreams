@@ -24,12 +24,15 @@ impl Args {
 }
 
 fn main() {
+    // parse connection
     let (host, port) = Args::parse().deconstruct();
 
+    // we use simple logger to log here
     if let Err(e) = simple_logger::SimpleLogger::new().env().init() {
         log::error!("{}", e);
         std::process::exit(1)
     } else {
+        // if simple_logger initializes succesfully, the server loop starts
         listen_and_broadcast(host, port)
     }
 }
@@ -44,7 +47,7 @@ fn listen_and_broadcast(host: String, port: String) {
     };
 
     let listener_thread = thread::spawn(move || {
-        // I guess as it stands if this fails, I want to exit
+        // if this fails, we want to exit
         let listener = match TcpListener::bind(address) {
             Ok(t) => t,
             Err(e) => {
@@ -63,6 +66,7 @@ fn listen_and_broadcast(host: String, port: String) {
             };
             let addr = connection.peer_addr().unwrap();
             log::info!("connection found, {}", addr);
+            // sending found connections to handler thread
             tx.send((addr, connection)).unwrap();
         }
     });
@@ -75,9 +79,12 @@ fn listen_and_broadcast(host: String, port: String) {
                 connection
                     .set_nonblocking(true)
                     .expect("set_nonblocking call failed");
+                // handler thread receives connections from the listener thread
+                // and saves them in clients
                 clients.insert(addr, connection);
             }
 
+            // check each client tcpstream for incoming messages
             let messages: Vec<(SocketAddr, Message)> = clients
                 .iter_mut()
                 .filter_map(|(addr, connection)| match handle_client(connection) {
@@ -93,6 +100,7 @@ fn listen_and_broadcast(host: String, port: String) {
                 broadcast_message(&mut clients, &message, sender);
             }
 
+            // couldnt make it work without this
             thread::sleep(Duration::from_millis(50))
         }
     });
@@ -101,6 +109,7 @@ fn listen_and_broadcast(host: String, port: String) {
     handler_thread.join().unwrap();
 }
 
+// send message to all clients except sender + remove disconnected
 fn broadcast_message(
     clients: &mut HashMap<SocketAddr, TcpStream>,
     message: &Message,
@@ -116,6 +125,7 @@ fn broadcast_message(
 
     log::info!("broadcasting {} from {}", message_type, sender_address);
 
+    // send message unless an error is returned in which case client is to be removed
     clients
         .iter_mut()
         .filter(|c| *c.0 != sender_address)

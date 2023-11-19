@@ -15,21 +15,15 @@ How to run it:
 
 Features:
 
-You can choose host and port as you start up both server and client, specify after -c flag\
-If you don't, it will do localhost:11111 - ONLY TESTED LOCALLY\
+You can choose host and port as you start up both server and client, specify by --host and --port flags\
+If you don't, it default to localhost:11111 - ONLY TESTED LOCALLY\
 Clients get a generated nicknames unless specified otherwise by the -u flag
 You can add as many clients as you want
 
 In the chatting mode you can send plain text by just typing\
 You can send png images by typing .image and a valid path\
 You can send files by typing .file and a valid path\
-Both files and images will save in the folder media/current username\
+Both files and images will save in the folder media/current username of the addresee\
 You can end the convo by typing .quit
 
 Have fun!
-
-todo:
-write doc comments\
-look for one more crates to add
-
-cd Documents/hekovani/rust/rusty_dreams

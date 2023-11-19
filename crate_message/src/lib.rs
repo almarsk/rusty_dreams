@@ -75,11 +75,13 @@ pub fn send_message(connection: &mut TcpStream, message: &Message) -> Result<(),
     Ok(())
 }
 
+// for naming the sent images
 pub fn full_time_now() -> String {
     let current_time: DateTime<Local> = Local::now();
     current_time.format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
+// for the handcrafted message logging
 pub fn chat_time_now() -> String {
     let current_time: DateTime<Local> = Local::now();
     current_time.format("%H:%M:%S").to_string()
