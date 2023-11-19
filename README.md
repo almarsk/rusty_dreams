@@ -3,14 +3,14 @@ Welcome to the rusty chat app.
 What it does:
 
 Sends messages, file and images between clients via a server\
-Is a big ol' group chat, but without the corporations stalking you\
+It's a big ol' group chat
 
 How to run it:
 
-1) Clone the repo; cd into it\
-2) In a terminal window run `cargo run --bin server`\
-3) In another terminal window run `cargo run --bin client`\
-4) Repeat step 3)\
+1) Clone the repo; cd into it
+2) In a terminal window run `cargo run --bin server`
+3) In another terminal window run `cargo run --bin client`
+4) Repeat step 3)
 5) Congrats, you have a running chatting app between two clients
 
 Features:
