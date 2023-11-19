@@ -39,9 +39,6 @@ fn main() {
         })
         .init();
 
-    // terminal for now
-    //yew::Renderer::<App>::new().render();
-
     // client loop
     send_and_receive(host, port, nick)
 }
