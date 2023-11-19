@@ -8,9 +8,9 @@ Is a big ol' group chat, but without the corporations stalking you\
 How to run it:
 
 1) Clone the repo; cd into it\
-2) In a terminal window run `cargo run --bin server`\
-3) In another terminal window run `cargo run --bin client`\
-4) Repeat step 3)\
+2) In a terminal window run `cargo run --bin server`
+3) In another terminal window run `cargo run --bin client`
+4) Repeat step 3)
 5) Congrats, you have a running chatting app between two clients
 
 Features:
