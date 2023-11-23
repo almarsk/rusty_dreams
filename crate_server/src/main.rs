@@ -1,9 +1,10 @@
+use anyhow::{anyhow, Result};
 use clap::Parser;
 
 use std::collections::HashMap;
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::mpsc;
-use std::thread;
+use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use message::{handle_client, send_message, Message, MessageType};
@@ -18,35 +19,32 @@ struct Args {
 }
 
 impl Args {
-    fn deconstruct(self) -> (String, String) {
+    fn destruct(self) -> (String, String) {
         (self.host, self.port)
     }
 }
 
-fn main() {
+fn main() -> Result<()> {
     // parse connection
-    let (host, port) = Args::parse().deconstruct();
+    let (host, port) = Args::parse().destruct();
 
     // we use simple logger to log here
     if let Err(e) = simple_logger::SimpleLogger::new().env().init() {
-        log::error!("{}", e);
-        std::process::exit(1)
+        Err(anyhow!(e))
     } else {
         // if simple_logger initializes succesfully, the server loop starts
         listen_and_broadcast(host, port)
     }
 }
 
-fn listen_and_broadcast(host: String, port: String) {
+fn listen_and_broadcast(host: String, port: String) -> Result<()> {
     let (tx, rx) = mpsc::channel();
 
-    let address: SocketAddr = if let Ok(a) = format!("{}:{}", host, port).parse() {
-        a
-    } else {
-        "127.0.0.1:11111".parse().unwrap()
-    };
+    let address: SocketAddr = format!("{}:{}", host, port)
+        .parse()
+        .unwrap_or("127.0.0.1:11111".parse()?);
 
-    let listener_thread = thread::spawn(move || {
+    let listener_thread: thread::JoinHandle<Result<()>> = thread::spawn(move || {
         // if this fails, we want to exit
         let listener = match TcpListener::bind(address) {
             Ok(t) => t,
@@ -64,21 +62,20 @@ fn listen_and_broadcast(host: String, port: String) {
             } else {
                 continue;
             };
-            let addr = connection.peer_addr().unwrap();
+            let addr = connection.peer_addr()?;
             log::info!("connection found, {}", addr);
             // sending found connections to handler thread
-            tx.send((addr, connection)).unwrap();
+            tx.send((addr, connection))?;
         }
+        Ok(())
     });
 
-    let handler_thread = thread::spawn(move || {
+    let handler_thread: JoinHandle<Result<()>> = thread::spawn(move || {
         let mut clients: HashMap<SocketAddr, TcpStream> = HashMap::new();
 
         loop {
             while let Ok((addr, connection)) = rx.try_recv() {
-                connection
-                    .set_nonblocking(true)
-                    .expect("set_nonblocking call failed");
+                connection.set_nonblocking(true)?;
                 // handler thread receives connections from the listener thread
                 // and saves them in clients
                 clients.insert(addr, connection);
@@ -105,8 +102,9 @@ fn listen_and_broadcast(host: String, port: String) {
         }
     });
 
-    listener_thread.join().unwrap();
-    handler_thread.join().unwrap();
+    listener_thread.join().unwrap()?;
+    handler_thread.join().unwrap()?;
+    Ok(())
 }
 
 // send message to all clients except sender + remove disconnected

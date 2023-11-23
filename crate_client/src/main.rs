@@ -1,3 +1,4 @@
+use anyhow::Result;
 use clap::Parser;
 use env_logger::Builder;
 
@@ -24,7 +25,7 @@ impl Args {
     }
 }
 
-fn main() {
+fn main() -> Result<()> {
     let (host, port, nick) = Args::parse().deconstruct();
 
     // env_logger as backend for log here

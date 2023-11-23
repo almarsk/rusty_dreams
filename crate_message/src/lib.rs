@@ -64,7 +64,7 @@ pub fn handle_client(connection: &mut TcpStream) -> Result<Message, Box<dyn Erro
 }
 
 pub fn send_message(connection: &mut TcpStream, message: &Message) -> Result<(), Box<dyn Error>> {
-    let serialized = message.serialize().unwrap();
+    let serialized = message.serialize()?;
     let len = serialized.len() as u32;
     // was getting a harmless but annoying lint with the write method
     connection.write_all(&len.to_be_bytes())?;
