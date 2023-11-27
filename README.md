@@ -16,8 +16,8 @@ How to run it:
 Features:
 
 You can choose host and port as you start up both server and client, specify by --host and --port flags\
-If you don't, it default to localhost:11111 - ONLY TESTED LOCALLY\
-Clients get a generated nicknames unless specified otherwise by the -u flag
+If you don't, it defaults to localhost:11111 - ONLY TESTED LOCALLY\
+Clients get a generated nicknames unless specified otherwise by the -u flag\
 You can add as many clients as you want
 
 In the chatting mode you can send plain text by just typing\
