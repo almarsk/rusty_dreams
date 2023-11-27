@@ -21,7 +21,7 @@ Clients get a generated nicknames unless specified otherwise by the -u flag\
 You can add as many clients as you want
 
 In the chatting mode you can send plain text by just typing\
-You can send png images by typing .image and a valid path\
+You can send png images by typing .image and a valid path (I give you media/default/hotdog.png as a valid path, you're welcome ;)\
 You can send files by typing .file and a valid path\
 Both files and images will save in the folder media/current username of the addresee\
 You can end the convo by typing .quit
