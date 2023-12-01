@@ -5,15 +5,23 @@ use std::{
 };
 
 use flume::Receiver;
-use futures::executor::block_on;
-use tokio::io::{AsyncWriteExt, WriteHalf};
+use tokio::io::WriteHalf;
 
 use super::task::Task;
 
+mod broadcast_message;
+use broadcast_message::broadcast_message;
+
 #[allow(clippy::needless_lifetimes)] // turning off this lint because the compiler is angy when i obey it
 pub async fn accomodate_and_broadcast<'a>(_rx_accomodate: Receiver<Task>, rx: Receiver<Task>) {
-    let mut clients: Arc<Mutex<HashMap<SocketAddr, WriteHalf<Vec<u8>>>>> =
+    let clients: Arc<Mutex<HashMap<SocketAddr, WriteHalf<Vec<u8>>>>> =
         Arc::new(Mutex::new(HashMap::new()));
+
+    // spawn a future per rx
+    //
+    // accomodation future should work with the arc and mutex
+    //
+    // broadcasting message has a function ready
 
     while let Ok(t) = rx.try_recv() {
         match t {
@@ -21,7 +29,7 @@ pub async fn accomodate_and_broadcast<'a>(_rx_accomodate: Receiver<Task>, rx: Re
                 // todo broadcasting
                 broadcast_message(a, m, &clients).await
             }
-            Task::Conn_Write(a, c) => {
+            Task::ConnWrite(a, c) => {
                 clients.lock().unwrap().insert(a, c);
             }
             _ => {
@@ -29,23 +37,4 @@ pub async fn accomodate_and_broadcast<'a>(_rx_accomodate: Receiver<Task>, rx: Re
             }
         }
     }
-}
-
-async fn broadcast_message<'a>(
-    address: SocketAddr,
-    message: Vec<u8>,
-    clients: &Arc<Mutex<HashMap<SocketAddr, WriteHalf<Vec<u8>>>>>,
-) {
-    let mut clients = clients.lock().unwrap();
-
-    clients
-        .iter_mut()
-        .filter(|(a, _)| **a != address)
-        .for_each(|(_, c)| {
-            block_on(async {
-                if let Err(e) = c.write_all(&message).await {
-                    eprintln!("sending failed: {}", e);
-                }
-            });
-        });
 }
