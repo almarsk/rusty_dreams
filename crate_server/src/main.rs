@@ -1,50 +1,39 @@
-use std::{collections::HashMap, net::SocketAddr};
-
+//use std::{collections::HashMap, net::SocketAddr};
 use flume::{bounded, Receiver, Sender};
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::{tcp::WriteHalf, TcpListener},
-};
+use tokio::{net::TcpListener, try_join};
 
 mod accepting_task;
+use accepting_task::accepting_task;
 mod broadcasting_task;
 use broadcasting_task::accomodate_and_broadcast;
+mod listening_task;
+use listening_task::listen;
 pub mod task;
 use task::Task;
 
-use message::Message;
+// TODO LOGGING
+// TODO PARSE HOST & PORT
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind("127.0.0.1:6666").await?;
-    let (tx, rx): (Sender<Task>, Receiver<Task>) = bounded(10);
+    let (tx_accomodate, rx_accomodate): (Sender<Task>, Receiver<Task>) = bounded(10);
+    let (tx_listen, rx_listen): (Sender<Task>, Receiver<Task>) = bounded(10);
+    let (tx_send, rx_send): (Sender<Task>, Receiver<Task>) = bounded(10);
     println!("starting a new thing");
 
-    let rx_broadcast = rx.clone();
+    let accepting_task = tokio::task::spawn(accepting_task(listener, tx_accomodate, tx_listen));
+    let broadcasting_task = tokio::task::spawn(accomodate_and_broadcast(rx_accomodate, rx_send));
+    let listening_task = tokio::task::spawn(listen(rx_listen, tx_send));
 
-    let accepting_task = tokio::task::spawn(async move {
-        let (mut socket, address) = listener.accept().await?;
-        let (tx_clone, rx_clone) = (tx.clone(), rx.clone());
-        // saying hi
-        println!("there is a new guy from: {}", address);
-        if let Ok(m) = Message::new("server: hi, new guy").serialize() {
-            socket.write_all(&m).await?;
-        }
-        let (mut reader, mut writer) = tokio::io::split(socket);
-    });
-
-    let broadcasting_task = tokio::task::spawn(accomodate_and_broadcast(rx_broadcast));
-    Ok(())
-
-    /*
-    tokio::spawn(async move {
-        loop {
-            let mut buffer = vec![0; 1024];
-
-            if let Ok(n) = reader.read(&mut buffer).await {
-                broadcast(address, buffer, n, tx_clone.clone()).await
+    match try_join!(accepting_task, broadcasting_task, listening_task) {
+        Ok(i) => {
+            if let Err(e) = i.0 {
+                eprintln!("It failed: {}", e)
             };
         }
-    });
-    */
+        Err(e) => eprintln!("It failed: {}", e),
+    }
+
+    Ok(())
 }

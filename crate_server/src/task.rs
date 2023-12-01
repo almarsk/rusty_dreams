@@ -1,7 +1,8 @@
 use std::net::SocketAddr;
-use tokio::net::tcp::WriteHalf;
+use tokio::{io::ReadHalf, io::WriteHalf};
 
-pub enum Task<'a> {
-    Connection(SocketAddr, WriteHalf<'a>),
+pub enum Task {
+    Conn_Write(SocketAddr, WriteHalf<Vec<u8>>),
+    Conn_Read(SocketAddr, ReadHalf<Vec<u8>>),
     Message(SocketAddr, Vec<u8>),
 }
