@@ -1,141 +1,50 @@
-use anyhow::{anyhow, Result};
-use clap::Parser;
+use std::{collections::HashMap, net::SocketAddr};
 
-use std::collections::HashMap;
-use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::sync::mpsc;
-use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use flume::{bounded, Receiver, Sender};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::{tcp::WriteHalf, TcpListener},
+};
 
-use message::{handle_client, send_message, Message, MessageType};
+mod accepting_task;
+mod broadcasting_task;
+use broadcasting_task::accomodate_and_broadcast;
+pub mod task;
+use task::Task;
 
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    #[arg(long, default_value_t = String::from("127.0.0.1"))]
-    host: String,
-    #[arg(long, default_value_t = String::from("11111"))]
-    port: String,
-}
+use message::Message;
 
-impl Args {
-    fn destruct(self) -> (String, String) {
-        (self.host, self.port)
-    }
-}
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let listener = TcpListener::bind("127.0.0.1:6666").await?;
+    let (tx, rx): (Sender<Task>, Receiver<Task>) = bounded(10);
+    println!("starting a new thing");
 
-fn main() -> Result<()> {
-    // parse connection
-    let (host, port) = Args::parse().destruct();
+    let rx_broadcast = rx.clone();
 
-    // we use simple logger to log here
-    if let Err(e) = simple_logger::SimpleLogger::new().env().init() {
-        Err(anyhow!(e))
-    } else {
-        // if simple_logger initializes succesfully, the server loop starts
-        listen_and_broadcast(host, port)
-    }
-}
-
-fn listen_and_broadcast(host: String, port: String) -> Result<()> {
-    let (tx, rx) = mpsc::channel();
-
-    let address: SocketAddr = format!("{}:{}", host, port)
-        .parse()
-        .unwrap_or("127.0.0.1:11111".parse()?);
-
-    let listener_thread: thread::JoinHandle<Result<()>> = thread::spawn(move || {
-        // if this fails, we want to exit
-        let listener = match TcpListener::bind(address) {
-            Ok(t) => t,
-            Err(e) => {
-                log::error!("{}", e);
-                std::process::exit(1)
-            }
-        };
-
-        log::info!("server started on {}", address);
-
-        for connection in listener.incoming() {
-            let connection: TcpStream = if let Ok(c) = connection {
-                c
-            } else {
-                continue;
-            };
-            let addr = connection.peer_addr()?;
-            log::info!("connection found, {}", addr);
-            // sending found connections to handler thread
-            tx.send((addr, connection))?;
+    let accepting_task = tokio::task::spawn(async move {
+        let (mut socket, address) = listener.accept().await?;
+        let (tx_clone, rx_clone) = (tx.clone(), rx.clone());
+        // saying hi
+        println!("there is a new guy from: {}", address);
+        if let Ok(m) = Message::new("server: hi, new guy").serialize() {
+            socket.write_all(&m).await?;
         }
-        Ok(())
+        let (mut reader, mut writer) = tokio::io::split(socket);
     });
 
-    let handler_thread: JoinHandle<Result<()>> = thread::spawn(move || {
-        let mut clients: HashMap<SocketAddr, TcpStream> = HashMap::new();
-
-        loop {
-            while let Ok((addr, connection)) = rx.try_recv() {
-                connection.set_nonblocking(true)?;
-                // handler thread receives connections from the listener thread
-                // and saves them in clients
-                clients.insert(addr, connection);
-            }
-
-            // check each client tcpstream for incoming messages
-            let messages: Vec<(SocketAddr, Message)> = clients
-                .iter_mut()
-                .filter_map(|(addr, connection)| match handle_client(connection) {
-                    Ok(message) => {
-                        //log::info!("{:?}", message);
-                        Some((*addr, message))
-                    }
-                    Err(_) => None,
-                })
-                .collect();
-
-            for (sender, message) in messages {
-                broadcast_message(&mut clients, &message, sender);
-            }
-
-            // couldnt make it work without this
-            thread::sleep(Duration::from_millis(50))
-        }
-    });
-
-    listener_thread.join().unwrap()?;
-    handler_thread.join().unwrap()?;
+    let broadcasting_task = tokio::task::spawn(accomodate_and_broadcast(rx_broadcast));
     Ok(())
-}
 
-// send message to all clients except sender + remove disconnected
-fn broadcast_message(
-    clients: &mut HashMap<SocketAddr, TcpStream>,
-    message: &Message,
-    sender_address: SocketAddr,
-) {
-    let mut clients_to_remove: Vec<SocketAddr> = vec![];
+    /*
+    tokio::spawn(async move {
+        loop {
+            let mut buffer = vec![0; 1024];
 
-    let message_type = match message.content {
-        MessageType::Text(_) => "text",
-        MessageType::Image(_) => "image",
-        MessageType::File(_, _) => "file",
-    };
-
-    log::info!("broadcasting {} from {}", message_type, sender_address);
-
-    // send message unless an error is returned in which case client is to be removed
-    clients
-        .iter_mut()
-        .filter(|c| *c.0 != sender_address)
-        .for_each(|(address, connection)| {
-            if send_message(connection, message).is_err() {
-                clients_to_remove.push(*address);
-                // not sure why this prints only the second time after send_message is attempted to a closed tcpstream
-                log::info!("removing {}", address);
-            }
-        });
-
-    clients_to_remove.into_iter().for_each(|invalid_conn| {
-        clients.remove(&invalid_conn);
-    })
+            if let Ok(n) = reader.read(&mut buffer).await {
+                broadcast(address, buffer, n, tx_clone.clone()).await
+            };
+        }
+    });
+    */
 }

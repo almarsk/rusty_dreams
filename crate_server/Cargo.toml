@@ -8,6 +8,9 @@ edition = "2021"
 [dependencies]
 message = { path="../crate_message" }
 log = "0.4.20"
-simple_logger = "4.2.0"
+env_logger = "0.10.1"
 clap = { version = "4.4.8", features = ['derive']}
 anyhow = "1.0.75"
+tokio = { version = "1.34.0", features = ["full"] }
+flume = "0.11.0"
+chrono = "0.4"

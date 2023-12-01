@@ -1,45 +1,53 @@
-use anyhow::Result;
-use clap::Parser;
-use env_logger::Builder;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
 
-use std::io::Write;
+use message::Message;
 
-// there is unconnected yew frontend in the works
-mod backend;
-use backend::send_and_receive;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let stream = TcpStream::connect("localhost:6666").await?;
 
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    #[arg(long, default_value_t = names::Generator::default().next().unwrap())]
-    nick: String,
-    #[arg(long, default_value_t = String::from("127.0.0.1"))]
-    host: String,
-    #[arg(long, default_value_t = String::from("11111"))]
-    port: String,
-}
+    let (mut reader, mut writer) = tokio::io::split(stream);
 
-impl Args {
-    fn deconstruct(self) -> (String, String, String) {
-        (self.host, self.port, self.nick)
-    }
-}
+    let write_task = tokio::spawn(async move {
+        let mut input = String::new();
 
-fn main() -> Result<()> {
-    let (host, port, nick) = Args::parse().deconstruct();
+        loop {
+            input.clear();
+            std::io::stdin().read_line(&mut input).unwrap();
 
-    // env_logger as backend for log here
-    Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-        .format(|buf, record| {
-            writeln!(
-                buf,
-                "{} {}",
-                chrono::Local::now().format("%H:%M:%S"),
-                record.args()
-            )
-        })
-        .init();
+            println!("input: {}", input);
 
-    // client loop
-    send_and_receive(host, port, nick)
+            if let Ok(ser_inp) = Message::new(input.as_str()).serialize() {
+                println!("sendind {:?}", Message::deserialize(&ser_inp).unwrap());
+                writer
+                    .write_all(&ser_inp)
+                    .await
+                    .expect("failed to send bytes");
+            }
+        }
+    });
+
+    let read_task = tokio::spawn(async move {
+        let mut buffer = vec![0; 1024];
+
+        loop {
+            match reader.read(&mut buffer).await {
+                Ok(0) => println!("nada"),
+                Ok(n) => {
+                    println!(
+                        "received message: {}",
+                        String::from_utf8((&buffer[..n]).into()).unwrap()
+                    )
+                }
+                Err(e) => {
+                    eprintln!("It failed: {}", e);
+                    return;
+                }
+            };
+        }
+    });
+
+    let _ = tokio::try_join!(write_task, read_task)?;
+    Ok(())
 }
