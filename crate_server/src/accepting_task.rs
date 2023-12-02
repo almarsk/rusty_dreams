@@ -22,12 +22,16 @@ pub async fn accepting_task<'a>(
             socket
                 .write_all(&m)
                 .await
-                .map_err(|_| ChatError::AccomodationIssue)?;
+                .map_err(|_| ChatError::GreetingIssue)?;
         }
         let _tx_clone_b = tx_broadcast.clone();
         let _tx_clone_l = tx_listen.clone();
-        let (mut _reader, mut _writer) = tokio::io::split(socket);
-        // todo send reader to tx_clone_l
-        // todo send writer to tx_clone_b
+        let (reader, writer) = tokio::io::split(socket);
+        _tx_clone_b
+            .send(Task::ConnWrite(address, writer))
+            .map_err(|_| ChatError::AccomodationIssue)?;
+        _tx_clone_l
+            .send(Task::ConnRead(address, reader))
+            .map_err(|_| ChatError::AccomodationIssue)?;
     }
 }

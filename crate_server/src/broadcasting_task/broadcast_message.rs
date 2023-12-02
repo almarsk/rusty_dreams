@@ -5,9 +5,12 @@ use std::{
 };
 
 use futures::executor::block_on;
-use tokio::io::{AsyncWriteExt, WriteHalf};
+use tokio::{
+    io::{AsyncWriteExt, WriteHalf},
+    net::TcpStream,
+};
 
-type Clients = Arc<Mutex<HashMap<SocketAddr, WriteHalf<Vec<u8>>>>>;
+type Clients = Arc<Mutex<HashMap<SocketAddr, WriteHalf<TcpStream>>>>;
 
 pub async fn broadcast_message<'a>(address: SocketAddr, message: Vec<u8>, clients: &Clients) {
     let mut clients = clients.lock().unwrap();
