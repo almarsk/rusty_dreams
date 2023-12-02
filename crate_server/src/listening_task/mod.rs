@@ -23,6 +23,7 @@ pub async fn listen(rx_accomodate: Receiver<Task>, tx: Sender<Task>) {
                                 eprintln!("Issue reading from {}", a)
                             }
                         });
+                        tokio::task::yield_now().await;
                     }
                     _ => eprintln!("Something else than Writehal coming in accomodating task"),
                 }
