@@ -32,7 +32,7 @@ pub async fn accomodate_and_broadcast(rx_accomodate: Receiver<Task>, rx_broadcas
                         if let Ok(mut h) = clients_a.clone().try_lock() {
                             h.insert(a, c);
                         } else {
-                            eprintln!("Couldnt accomodate {}", a)
+                            eprintln!("Couldnt accomodate writer {}", a)
                         }
                     }
                     _ => eprintln!("Something else than Writehal coming in accomodating task"),

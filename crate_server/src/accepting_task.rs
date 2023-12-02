@@ -30,8 +30,13 @@ pub async fn accepting_task<'a>(
         _tx_clone_b
             .send(Task::ConnWrite(address, writer))
             .map_err(|_| ChatError::AccomodationIssue)?;
-        _tx_clone_l
+        match _tx_clone_l
             .send(Task::ConnRead(address, reader))
-            .map_err(|_| ChatError::AccomodationIssue)?;
+            .map_err(|_| ChatError::AccomodationIssue)
+        {
+            Ok(_) => println!("sent reader of {}", address),
+            Err(e) => eprintln!("{e}"),
+        };
+        println!("sent {} everywhere", address)
     }
 }
