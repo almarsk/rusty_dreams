@@ -16,7 +16,7 @@ pub async fn read_from_socket(
     tx: Sender<Task>,
     address: SocketAddr,
 ) -> Result<(), ChatError> {
-    println!("2: starting a new listener on {}", address);
+    println!("starting a new listener on {}", address);
     loop {
         let mut buffer = vec![0; 1024];
 

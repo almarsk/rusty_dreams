@@ -16,7 +16,6 @@ pub async fn listen(rx_accomodate: Receiver<Task>, tx: Sender<Task>) {
             while let Ok(t) = rx_accomodate.recv() {
                 match t {
                     Task::ConnRead(a, mut c) => {
-                        println!("starting a new listener on {}", a);
                         let tx_clone = tx.clone();
                         tokio::task::spawn(async move {
                             if read_from_socket(&mut c, tx_clone, a).await.is_err() {
