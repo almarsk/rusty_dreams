@@ -7,7 +7,7 @@ use std::{
 use flume::Receiver;
 use tokio::{io::WriteHalf, net::TcpStream};
 
-use super::task::Task;
+use super::task_type::Task;
 
 mod broadcast_message;
 use broadcast_message::broadcast_message;
@@ -32,10 +32,10 @@ pub async fn accomodate_and_broadcast(rx_accomodate: Receiver<Task>, rx_broadcas
                         if let Ok(mut h) = clients_a.clone().try_lock() {
                             h.insert(a, c);
                         } else {
-                            eprintln!("Couldnt accomodate writer {}", a)
+                            log::error!("Couldnt accomodate writer {}", a)
                         }
                     }
-                    _ => eprintln!("Something else than Writehal coming in accomodating task"),
+                    _ => log::error!("Something else than Writehal coming in accomodating task"),
                 }
             }
         }
@@ -48,7 +48,7 @@ pub async fn accomodate_and_broadcast(rx_accomodate: Receiver<Task>, rx_broadcas
                 match t {
                     Task::Message(a, m) => broadcast_message(a, m, &clients).await,
                     _ => {
-                        eprintln!("Something else than message being sent to broadcasting task")
+                        log::error!("Something else than message being sent to broadcasting task")
                     }
                 }
             }

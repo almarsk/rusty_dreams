@@ -1,52 +1,60 @@
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use clap::Parser;
+use env_logger::Builder;
 use tokio::net::TcpStream;
 
-use message::Message;
+use std::{io::Write, net::SocketAddr};
+
+mod read_task;
+mod write_task;
+use read_task::read;
+use write_task::write;
+mod save_file;
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    #[arg(long, default_value_t = names::Generator::default().next().unwrap())]
+    nick: String,
+    #[arg(long, default_value_t = String::from("127.0.0.1"))]
+    host: String,
+    #[arg(long, default_value_t = String::from("11111"))]
+    port: String,
+}
+
+impl Args {
+    fn deconstruct(self) -> (String, String, String) {
+        (self.host, self.port, self.nick)
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let stream = TcpStream::connect("localhost:6666").await?;
+    let (host, port, nick) = Args::parse().deconstruct();
 
-    let (mut reader, mut writer) = tokio::io::split(stream);
+    let address: SocketAddr = if let Ok(a) = format!("{}:{}", host, port).parse() {
+        a
+    } else {
+        log::error!("cant use {}:{}, going default", host, port);
+        "127.0.0.1:11111".parse()?
+    };
 
-    let write_task = tokio::spawn(async move {
-        let mut input = String::new();
+    // env_logger as backend for log here
+    Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{} {}",
+                chrono::Local::now().format("%H:%M:%S"),
+                record.args()
+            )
+        })
+        .init();
 
-        loop {
-            input.clear();
-            std::io::stdin().read_line(&mut input).unwrap();
+    let stream = TcpStream::connect(address).await?;
+    let (reader, writer) = tokio::io::split(stream);
 
-            println!("input: {}", input);
-
-            if let Ok(ser_inp) = Message::new(input.as_str()).serialize() {
-                println!("sendind {:?}", Message::deserialize(&ser_inp).unwrap());
-                writer
-                    .write_all(&ser_inp)
-                    .await
-                    .expect("failed to send bytes");
-            }
-        }
-    });
-
-    let read_task = tokio::spawn(async move {
-        let mut buffer = vec![0; 1024];
-
-        loop {
-            match reader.read(&mut buffer).await {
-                Ok(0) => println!("nada"),
-                Ok(n) => {
-                    println!(
-                        "received message: {}",
-                        String::from_utf8((&buffer[..n]).into()).unwrap()
-                    )
-                }
-                Err(e) => {
-                    eprintln!("It failed: {}", e);
-                    return;
-                }
-            };
-        }
-    });
+    let write_task = tokio::spawn(write(writer, nick.clone()));
+    let read_task = tokio::spawn(read(reader, nick));
 
     let _ = tokio::try_join!(write_task, read_task)?;
     Ok(())

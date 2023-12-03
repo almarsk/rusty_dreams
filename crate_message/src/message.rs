@@ -1,6 +1,10 @@
 use bincode::Error as BincodeError;
 use serde::{Deserialize, Serialize};
 
+use crate::ChatError;
+
+use super::build_message::build_message;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MessageType {
     Text(String),
@@ -20,6 +24,7 @@ impl MessageType {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
     pub content: MessageType,
+    pub nick: String,
 }
 
 impl Message {
@@ -29,10 +34,18 @@ impl Message {
     pub fn deserialize(from: &[u8]) -> Result<Self, BincodeError> {
         bincode::deserialize(from)
     }
-    pub fn new(input: &str) -> Message {
-        // todo - parse into the other types
-        Message {
-            content: MessageType::Text(input.to_string()),
+    pub fn new(input: &str, nick: String) -> Result<Message, ChatError> {
+        if input == ".quit\n" {
+            std::process::exit(0)
+        } else if input.starts_with(".file ") {
+            build_message(nick, input, MessageType::File("".to_string(), vec![]))
+        } else if input.starts_with(".image ") {
+            build_message(nick, input, MessageType::Image(vec![]))
+        } else {
+            Ok(Message {
+                content: MessageType::Text(input.to_string()),
+                nick,
+            })
         }
     }
 }

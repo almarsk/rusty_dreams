@@ -3,7 +3,7 @@ use message::Message;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 
-use super::task::Task;
+use super::task_type::Task;
 use message::ChatError;
 
 pub async fn accepting_task<'a>(
@@ -17,8 +17,8 @@ pub async fn accepting_task<'a>(
             .await
             .map_err(|_| ChatError::AcceptanceIssue)?;
         // saying hi
-        println!("there is a new guy from: {}", address);
-        if let Ok(m) = Message::new("server: hi, new guy").serialize() {
+        log::info!("there is a new guy from: {}", address);
+        if let Ok(m) = Message::new("hi, new guy", "system".to_string())?.serialize() {
             socket
                 .write_all(&m)
                 .await
@@ -30,13 +30,8 @@ pub async fn accepting_task<'a>(
         _tx_clone_b
             .send(Task::ConnWrite(address, writer))
             .map_err(|_| ChatError::AccomodationIssue)?;
-        match _tx_clone_l
+        _tx_clone_l
             .send(Task::ConnRead(address, reader))
-            .map_err(|_| ChatError::AccomodationIssue)
-        {
-            Ok(_) => println!("sent reader of {}", address),
-            Err(e) => eprintln!("{e}"),
-        };
-        println!("sent {} everywhere", address)
+            .map_err(|_| ChatError::AccomodationIssue)?;
     }
 }

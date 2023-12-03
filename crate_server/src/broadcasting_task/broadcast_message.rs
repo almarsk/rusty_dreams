@@ -21,13 +21,13 @@ pub async fn broadcast_message<'a>(address: SocketAddr, message: Vec<u8>, client
         .for_each(|(a, c)| {
             block_on(async {
                 if let Err(e) = c.write_all(&message).await {
-                    eprintln!("sending to {} failed: {}", a, e);
+                    log::error!("sending to {} failed: {}", a, e);
                     clients_to_remove.push(*a)
                 }
             });
         });
     clients_to_remove.into_iter().for_each(|c| {
-        eprintln!("removing {}", c);
+        log::error!("removing {}", c);
         clients.remove(&c);
     })
 }
