@@ -8,6 +8,8 @@ pub async fn read(mut reader: ReadHalf<TcpStream>, nick: String) -> Result<(), C
     let mut buffer = vec![0; 1024];
 
     loop {
+        // todo read exact
+
         match reader.read(&mut buffer).await {
             Ok(0) => Ok(()),
             Ok(n) => {

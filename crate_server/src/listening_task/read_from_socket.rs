@@ -18,6 +18,7 @@ pub async fn read_from_socket(
 ) -> Result<(), ChatError> {
     log::info!("starting a new listener on {}", address);
     loop {
+        // TODO dynamic message length
         let mut buffer = vec![0; 1024];
 
         match socket.read(&mut buffer).await {
