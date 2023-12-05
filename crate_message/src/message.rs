@@ -35,7 +35,7 @@ impl Message {
         bincode::deserialize(from)
     }
     pub fn new(input: &str, nick: String) -> Result<Message, ChatError> {
-        if input == ".quit\n" {
+        if input.starts_with(".quit") {
             std::process::exit(0)
         } else if input.starts_with(".file ") {
             build_message(nick, input, MessageType::File("".to_string(), vec![]))

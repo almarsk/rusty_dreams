@@ -4,6 +4,8 @@ mod message;
 pub use message::{Message, MessageType};
 mod error;
 pub use error::ChatError;
+mod buffer;
+pub use buffer::get_buffer;
 mod build_message;
 
 use crossterm::{cursor, execute, terminal};

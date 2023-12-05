@@ -18,12 +18,16 @@ pub async fn broadcast_message<'a>(address: SocketAddr, message: Vec<u8>, client
     clients
         .iter_mut()
         .filter(|(a, _)| **a != address)
-        .for_each(|(a, c)| {
+        .for_each(|(a, connection)| {
             block_on(async {
-                if let Err(e) = c.write_all(&message).await {
-                    log::error!("sending to {} failed: {}", a, e);
-                    clients_to_remove.push(*a)
-                }
+                let len = message.len() as u32;
+                if connection.write_all(&len.to_be_bytes()).await.is_err() {
+                    log::error!("sending to {} failed", a);
+                    clients_to_remove.push(*a);
+                } else {
+                    connection.write_all(&message).await.unwrap();
+                    connection.flush().await.unwrap();
+                };
             });
         });
     clients_to_remove.into_iter().for_each(|c| {

@@ -10,6 +10,7 @@ use tokio::{
 };
 
 use crate::task_type::Task;
+use message::get_buffer;
 
 pub async fn read_from_socket(
     socket: &mut ReadHalf<TcpStream>,
@@ -18,18 +19,11 @@ pub async fn read_from_socket(
 ) -> Result<(), ChatError> {
     log::info!("starting a new listener on {}", address);
     loop {
-        // TODO dynamic message length
-        let mut buffer = vec![0; 1024];
-
+        let mut buffer = get_buffer(socket).await?;
         match socket.read(&mut buffer).await {
             Ok(0) => Ok(()),
             Ok(n) => {
-                log::info!(
-                    "new message from {}: {:?}",
-                    address,
-                    message::Message::deserialize(&buffer[..n])
-                        .map_err(|_| ChatError::DeserializingIssue)?
-                );
+                log::info!("new message from {}", address);
                 tx.send(Task::Message(address, buffer[..n].to_vec()))
                     .map_err(|_| ChatError::PassToSendIssue)
             }

@@ -18,12 +18,19 @@ pub async fn accepting_task<'a>(
             .map_err(|_| ChatError::AcceptanceIssue)?;
         // saying hi
         log::info!("there is a new guy from: {}", address);
+
         if let Ok(m) = Message::new("hi, new guy", "system".to_string())?.serialize() {
-            socket
-                .write_all(&m)
-                .await
-                .map_err(|_| ChatError::GreetingIssue)?;
+            if socket.write_all(&m.len().to_be_bytes()).await.is_err() {
+                log::error!("sending to server failed");
+            } else {
+                socket
+                    .write_all(&m)
+                    .await
+                    .map_err(|_| ChatError::WritingIssue)?
+                //writer.flush().await.unwrap();
+            };
         }
+
         let _tx_clone_b = tx_broadcast.clone();
         let _tx_clone_l = tx_listen.clone();
         let (reader, writer) = tokio::io::split(socket);

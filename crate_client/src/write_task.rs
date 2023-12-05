@@ -17,12 +17,18 @@ pub async fn write(mut writer: WriteHalf<TcpStream>, nick: String) -> Result<(),
         log::info!("{}: {}", nick, input);
 
         if let Ok(ser_inp) = Message::new(input, nick.clone())?.serialize() {
+            let len = ser_inp.len() as u32;
+            if writer.write_all(&len.to_be_bytes()).await.is_err() {
+                log::error!("sending to server failed");
+            } else {
+                writer
+                    .write_all(&ser_inp)
+                    .await
+                    .map_err(|_| ChatError::WritingIssue)?
+                //writer.flush().await.unwrap();
+            };
+
             // writer.write_exact(ser_inp.len())
-            //
-            writer
-                .write_all(&ser_inp)
-                .await
-                .map_err(|_| ChatError::WritingIssue)?
         }
     }
 }
