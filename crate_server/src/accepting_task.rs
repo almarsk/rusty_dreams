@@ -31,13 +31,17 @@ pub async fn accepting_task<'a>(
             };
         }
 
-        let _tx_clone_b = tx_broadcast.clone();
-        let _tx_clone_l = tx_listen.clone();
+        // user will be added to user table
+        // once succesfully added to
+        // clients hashmap in broadcasting task
+
+        let tx_clone_b = tx_broadcast.clone();
+        let tx_clone_l = tx_listen.clone();
         let (reader, writer) = tokio::io::split(socket);
-        _tx_clone_b
+        tx_clone_b
             .send(Task::ConnWrite(address, writer))
             .map_err(|_| ChatError::AccomodationIssue)?;
-        _tx_clone_l
+        tx_clone_l
             .send(Task::ConnRead(address, reader))
             .map_err(|_| ChatError::AccomodationIssue)?;
     }

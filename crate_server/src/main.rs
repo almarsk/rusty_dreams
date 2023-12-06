@@ -1,6 +1,9 @@
+use anyhow::Result;
 use clap::Parser;
+use dotenv::dotenv;
 use env_logger::Builder;
 use flume::{bounded, Receiver, Sender};
+use sqlx::postgres::PgPoolOptions;
 use tokio::{net::TcpListener, try_join};
 
 mod accepting_task;
@@ -30,15 +33,8 @@ impl Args {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
     let (host, port) = Args::parse().deconstruct();
-
-    let address: SocketAddr = if let Ok(a) = format!("{}:{}", host, port).parse() {
-        a
-    } else {
-        log::error!("cant use {}:{}, going default", host, port);
-        "127.0.0.1:11111".parse()?
-    };
 
     // env_logger as backend for log here
     Builder::from_env(env_logger::Env::default().default_filter_or("info"))
@@ -52,6 +48,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .init();
 
+    let address: SocketAddr = if let Ok(a) = format!("{}:{}", host, port).parse() {
+        a
+    } else {
+        log::error!("cant use {}:{}, going default", host, port);
+        "127.0.0.1:11111".parse()?
+    };
+
+    // database setup
+    dotenv().ok();
+    let database_url = std::env::var("DATABASE_URL")?;
+    log::info!("{}", database_url);
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&database_url)
+        .await
+        .map_err(|e| anyhow::Error::new(e).context("Error connecting to database"))?;
+    log::info!("Connected to the database.");
+
+    sqlx::query(
+        r#"
+   CREATE TABLE IF NOT EXISTS user (
+     id bigserial,
+     nick text
+   );"#,
+    )
+    .execute(&pool)
+    .await?;
+
+    // server
     let listener = TcpListener::bind(address).await?;
     let (tx_accomodate, rx_accomodate): (Sender<Task>, Receiver<Task>) = bounded(10);
     let (tx_listen, rx_listen): (Sender<Task>, Receiver<Task>) = bounded(10);
@@ -62,6 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let broadcasting_task = tokio::task::spawn(accomodate_and_broadcast(rx_accomodate, rx_send));
     let listening_task = tokio::task::spawn(listen(rx_listen, tx_send));
 
+    // not too happy with this
     match try_join!(accepting_task, broadcasting_task, listening_task) {
         Ok(i) => {
             if let Err(e) = i.0 {

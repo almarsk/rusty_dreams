@@ -1,0 +1,15 @@
+in client add username and password
+the authetification messages will be sent from server
+on server side check the combination
+if correct - its all good
+if incorrect - refuse connection
+(
+    security - count incorrect attempts; upon succes turn to zero, ban time to None
+    if incorrect amount higher save ban time;
+    if ban time is something and lower than 5 minutes, don't allow
+)
+if .new-user - start a new user - add to user table (in broadcasting task)
+
+on read_from_socket add messages message table
+
+on accepting task send the whole chat history to client and print it there

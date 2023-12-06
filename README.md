@@ -5,6 +5,9 @@ What it does:
 Sends messages, file and images between clients via a server\
 It's really a big ol' group chat
 
+Prerequistits:
+1) Make sure you have postgres installed on your system
+
 How to run it:
 
 1) Clone the repo; cd into it

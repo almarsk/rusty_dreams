@@ -31,6 +31,7 @@ pub async fn accomodate_and_broadcast(rx_accomodate: Receiver<Task>, rx_broadcas
                     Task::ConnWrite(a, c) => {
                         if let Ok(mut h) = clients_a.clone().try_lock() {
                             h.insert(a, c);
+                            // todo add user to user table
                         } else {
                             log::error!("Couldnt accomodate writer {}", a)
                         }
