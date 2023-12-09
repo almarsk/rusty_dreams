@@ -18,6 +18,8 @@ mod check_db;
 
 use std::{io::Write, net::SocketAddr, sync::Arc};
 
+type Senders = (Sender<(Task, i32)>, Receiver<(Task, i32)>);
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -67,14 +69,24 @@ async fn main() -> Result<()> {
             .await
             .map_err(|e| anyhow::Error::new(e).context("Error connecting to database"))?,
     );
-    log::info!("Connected to the database.");
 
     sqlx::query(
         r#"
    CREATE TABLE IF NOT EXISTS rusty_app_user (
-     id bigserial,
+     id SERIAL PRIMARY KEY,
      nick text,
      pass text
+   );"#,
+    )
+    .execute(&*pool)
+    .await?;
+
+    sqlx::query(
+        r#"
+   CREATE TABLE IF NOT EXISTS rusty_app_message (
+     id SERIAL PRIMARY KEY,
+     message TEXT,
+     user_id SERIAL REFERENCES rusty_app_user(id)
    );"#,
     )
     .execute(&*pool)
@@ -84,7 +96,7 @@ async fn main() -> Result<()> {
     let listener = TcpListener::bind(address).await?;
     let (tx_accomodate, rx_accomodate): (Sender<Task>, Receiver<Task>) = bounded(10);
     let (tx_listen, rx_listen): (Sender<Task>, Receiver<Task>) = bounded(10);
-    let (tx_send, rx_send): (Sender<Task>, Receiver<Task>) = bounded(10);
+    let (tx_send, rx_send): Senders = bounded(10);
     log::info!("starting a new server");
 
     let accepting_task = tokio::task::spawn(accepting_task(

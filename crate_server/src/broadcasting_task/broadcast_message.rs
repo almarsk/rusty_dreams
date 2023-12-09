@@ -5,6 +5,7 @@ use std::{
 };
 
 use futures::executor::block_on;
+
 use tokio::{io::WriteHalf, net::TcpStream};
 
 use message::{send_message, Addressee::*, MaybeSerializedMessage::*};
@@ -24,8 +25,9 @@ pub async fn broadcast_message<'a>(address: SocketAddr, message: Vec<u8>, client
                 };
             });
         });
+
     clients_to_remove.into_iter().for_each(|c| {
         log::error!("removing {}", c);
         clients.remove(&c);
-    })
+    });
 }

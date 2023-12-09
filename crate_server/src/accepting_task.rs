@@ -73,27 +73,32 @@ pub async fn accepting_task<'a>(
             "".to_string()
         };
 
-        // TODO recognize wrong password and taken nickname
-        let login_command = if login_db(&nick, &pass, Arc::clone(&pool)).await.is_err() {
-            log::error!("invalid login from {}", address);
-            ".refuse"
-        } else {
-            ".accept"
+        let client_id = match login_db(&nick, &pass, Arc::clone(&pool)).await {
+            Err(_) => {
+                log::error!("invalid login from {}", address);
+                if let Err(e) = send_message(
+                    &mut writer,
+                    ToSerialize(".refuse", "system"),
+                    Client(&address),
+                )
+                .await
+                {
+                    log::error!("issue sending login info to client {}", e)
+                };
+                continue;
+            }
+            Ok(id) => id,
         };
 
         if let Err(e) = send_message(
             &mut writer,
-            ToSerialize(login_command, "system"),
+            ToSerialize(".accept", "system"),
             Client(&address),
         )
         .await
         {
             log::error!("issue sending login info to client {}", e)
         };
-
-        if login_command == ".refuse" {
-            continue;
-        }
 
         // welcoming new client
         if let Err(e) = send_message(
@@ -110,7 +115,7 @@ pub async fn accepting_task<'a>(
             .send(Task::ConnWrite(address, writer))
             .map_err(|_| ChatError::AccomodationIssue)?;
         tx_clone_l
-            .send(Task::ConnRead(address, reader))
+            .send(Task::ConnRead(address, reader, client_id))
             .map_err(|_| ChatError::AccomodationIssue)?;
     }
 }

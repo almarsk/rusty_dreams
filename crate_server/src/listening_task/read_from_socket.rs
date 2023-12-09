@@ -14,8 +14,9 @@ use message::get_buffer;
 
 pub async fn read_from_socket(
     socket: &mut ReadHalf<TcpStream>,
-    tx: Sender<Task>,
+    tx: Sender<(Task, i32)>,
     address: SocketAddr,
+    client_id: i32,
 ) -> Result<(), ChatError> {
     log::info!("starting a new listener on {}", address);
     loop {
@@ -24,7 +25,7 @@ pub async fn read_from_socket(
             Ok(0) => Ok(()),
             Ok(n) => {
                 log::info!("new message from {}", address);
-                tx.send(Task::Message(address, buffer[..n].to_vec()))
+                tx.send((Task::Message(address, buffer[..n].to_vec()), client_id))
                     .map_err(|_| ChatError::PassToSendIssue)
             }
             _ => Err(ChatError::OtherEndIssue),

@@ -60,4 +60,8 @@ impl Message {
             })
         }
     }
+
+    pub fn into_db(&self) -> String {
+        String::from("sup")
+    }
 }

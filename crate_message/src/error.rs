@@ -33,4 +33,6 @@ pub enum ChatError {
     LoginIssue,
     #[error("Database error")]
     DatabaseIssue,
+    #[error("Env issue")]
+    EnvIssue,
 }

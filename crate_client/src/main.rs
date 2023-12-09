@@ -75,8 +75,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let m_deser = Message::deserialize(&buffer)?;
 
-    log::info!("{:?}", m_deser);
-
     match m_deser.content {
         MessageType::Welcome(Ok(())) => {
             let write_task = tokio::spawn(write(writer, nick.clone()));
