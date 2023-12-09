@@ -1,7 +1,6 @@
-use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
-use message::{clear_previous_line, ChatError, Message};
+use message::{clear_previous_line, send_message, Addressee, ChatError, MaybeSerializedMessage::*};
 use tokio::io::WriteHalf;
 
 pub async fn write(mut writer: WriteHalf<TcpStream>, nick: String) -> Result<(), ChatError> {
@@ -13,22 +12,15 @@ pub async fn write(mut writer: WriteHalf<TcpStream>, nick: String) -> Result<(),
 
         let input = input.trim_end_matches('\n');
 
+        // log user message
         clear_previous_line();
         log::info!("{}: {}", nick, input);
 
-        if let Ok(ser_inp) = Message::new(input, nick.clone())?.serialize() {
-            let len = ser_inp.len() as u32;
-            if writer.write_all(&len.to_be_bytes()).await.is_err() {
-                log::error!("sending to server failed");
-            } else {
-                writer
-                    .write_all(&ser_inp)
-                    .await
-                    .map_err(|_| ChatError::WritingIssue)?
-                //writer.flush().await.unwrap();
-            };
-
-            // writer.write_exact(ser_inp.len())
-        }
+        send_message(
+            &mut writer,
+            ToSerialize(input, nick.as_str()),
+            Addressee::Server,
+        )
+        .await?;
     }
 }

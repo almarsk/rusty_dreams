@@ -10,7 +10,6 @@ pub async fn read(mut reader: ReadHalf<TcpStream>, nick: String) -> Result<(), C
         let buffer_result = match reader.read_exact(&mut len_bytes).await {
             Ok(_) => {
                 let len = u32::from_be_bytes(len_bytes) as usize;
-                log::info!("creating buffer to read {} bytes", len);
                 Ok(vec![0u8; len])
             }
             Err(_) => Err(ChatError::ReadingIssue),
@@ -39,6 +38,7 @@ pub async fn read(mut reader: ReadHalf<TcpStream>, nick: String) -> Result<(), C
                             log::info!("incoming image from {}", incoming_message.nick);
                             receive_and_save(MessageType::Image(data), &nick)?;
                         }
+                        _ => log::info!("Something unexpected being read from server."),
                     };
 
                     Ok(())

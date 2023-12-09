@@ -14,8 +14,9 @@ mod listening_task;
 use listening_task::listen;
 pub mod task_type;
 use task_type::Task;
+mod check_db;
 
-use std::{io::Write, net::SocketAddr};
+use std::{io::Write, net::SocketAddr, sync::Arc};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -59,21 +60,24 @@ async fn main() -> Result<()> {
     dotenv().ok();
     let database_url = std::env::var("DATABASE_URL")?;
     log::info!("{}", database_url);
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&database_url)
-        .await
-        .map_err(|e| anyhow::Error::new(e).context("Error connecting to database"))?;
+    let pool = Arc::new(
+        PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&database_url)
+            .await
+            .map_err(|e| anyhow::Error::new(e).context("Error connecting to database"))?,
+    );
     log::info!("Connected to the database.");
 
     sqlx::query(
         r#"
-   CREATE TABLE IF NOT EXISTS user (
+   CREATE TABLE IF NOT EXISTS rusty_app_user (
      id bigserial,
-     nick text
+     nick text,
+     pass text
    );"#,
     )
-    .execute(&pool)
+    .execute(&*pool)
     .await?;
 
     // server
@@ -83,7 +87,12 @@ async fn main() -> Result<()> {
     let (tx_send, rx_send): (Sender<Task>, Receiver<Task>) = bounded(10);
     log::info!("starting a new server");
 
-    let accepting_task = tokio::task::spawn(accepting_task(listener, tx_accomodate, tx_listen));
+    let accepting_task = tokio::task::spawn(accepting_task(
+        listener,
+        tx_accomodate,
+        tx_listen,
+        Arc::clone(&pool),
+    ));
     let broadcasting_task = tokio::task::spawn(accomodate_and_broadcast(rx_accomodate, rx_send));
     let listening_task = tokio::task::spawn(listen(rx_listen, tx_send));
 

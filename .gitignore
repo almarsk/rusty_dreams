@@ -2,3 +2,4 @@
 media/*
 !media/default
 .DS_Store
+.env

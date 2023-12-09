@@ -11,7 +11,6 @@ pub async fn get_buffer(reader: &mut ReadHalf<TcpStream>) -> Result<Vec<u8>, Cha
             Ok(0) => (),
             Ok(_) => {
                 let len = u32::from_be_bytes(len_bytes) as usize;
-                log::info!("creating buffer to read {} bytes", len);
                 return Ok(vec![0u8; len]);
             }
             Err(_) => return Err(ChatError::ReadingIssue),

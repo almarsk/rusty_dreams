@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Serialize, Deserialize)]
 pub enum ChatError {
     #[error("Error passing message to distribution")]
     PassToSendIssue,
@@ -16,6 +17,8 @@ pub enum ChatError {
     WritingIssue,
     #[error("Error deserializing")]
     DeserializingIssue,
+    #[error("Error serializing")]
+    SerializingIssue,
     #[error("Error saving file")]
     SavingIssue,
     #[error("Error creating user dir")]
@@ -26,4 +29,8 @@ pub enum ChatError {
     NoPathIssue,
     #[error("Error reading from path")]
     ReadingIssue,
+    #[error("Wrong password")]
+    LoginIssue,
+    #[error("Database error")]
+    DatabaseIssue,
 }

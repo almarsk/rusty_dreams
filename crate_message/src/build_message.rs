@@ -26,6 +26,7 @@ pub fn build_message(
                 MessageType::File(file_name.to_string_lossy().to_string(), file_contents)
             }
             MessageType::Image(_) => MessageType::Image(file_contents),
+            MessageType::Welcome(w) => MessageType::Welcome(w),
             _ => {
                 log::warn!("something fishy is goin on");
                 MessageType::Text("".to_string())

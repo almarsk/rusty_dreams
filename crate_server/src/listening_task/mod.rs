@@ -7,9 +7,6 @@ use read_from_socket::read_from_socket;
 
 pub async fn listen(rx_accomodate: Receiver<Task>, tx: Sender<Task>) -> Result<(), ChatError> {
     // this is where we listen like in the example
-    // clients hashmap with readers will be iterated
-
-    // accomodation future should work with the arc and mutex
     tokio::task::spawn(async move {
         log::info!("starting accomodation task");
 

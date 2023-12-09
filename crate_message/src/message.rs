@@ -10,6 +10,7 @@ pub enum MessageType {
     Text(String),
     Image(Vec<u8>),
     File(String, Vec<u8>), // Filename and its content as bytes
+    Welcome(Result<(), ChatError>),
 }
 
 impl MessageType {
@@ -41,6 +42,17 @@ impl Message {
             build_message(nick, input, MessageType::File("".to_string(), vec![]))
         } else if input.starts_with(".image ") {
             build_message(nick, input, MessageType::Image(vec![]))
+        } else if input.starts_with(".accept") {
+            Ok(Message {
+                content: MessageType::Welcome(Ok(())),
+                nick: "system".to_string(),
+            })
+        } else if input.starts_with(".refuse") {
+            // space here to add reasong of failure
+            Ok(Message {
+                content: MessageType::Welcome(Err(ChatError::LoginIssue)),
+                nick: "system".to_string(),
+            })
         } else {
             Ok(Message {
                 content: MessageType::Text(input.to_string()),

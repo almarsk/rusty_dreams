@@ -16,11 +16,6 @@ pub async fn accomodate_and_broadcast(rx_accomodate: Receiver<Task>, rx_broadcas
     let clients: Arc<Mutex<HashMap<SocketAddr, WriteHalf<TcpStream>>>> =
         Arc::new(Mutex::new(HashMap::new()));
 
-    // this accomodation part is duplicated in the listening task.
-    // I wanted to extract it to a function, but the only difference is
-    // in place the cliens hashmap has value type WriteHalf
-    // and in the other ReadHalf
-    // postponing this generics work
     let clients_a = clients.clone();
 
     // accomodation task
