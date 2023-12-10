@@ -62,35 +62,39 @@ async fn main() -> Result<()> {
     dotenv().ok();
     let database_url = std::env::var("DATABASE_URL")?;
     log::info!("{}", database_url);
-    let pool = Arc::new(
+    let pool = Arc::new(Mutex::new(
         PgPoolOptions::new()
             .max_connections(5)
             .connect(&database_url)
             .await
             .map_err(|e| anyhow::Error::new(e).context("Error connecting to database"))?,
-    );
+    ));
 
-    sqlx::query(
-        r#"
+    {
+        let lock = &*pool.lock().await;
+
+        sqlx::query(
+            r#"
    CREATE TABLE IF NOT EXISTS rusty_app_user (
      id SERIAL PRIMARY KEY,
      nick text,
      pass text
    );"#,
-    )
-    .execute(&*pool)
-    .await?;
+        )
+        .execute(lock)
+        .await?;
 
-    sqlx::query(
-        r#"
+        sqlx::query(
+            r#"
    CREATE TABLE IF NOT EXISTS rusty_app_message (
      id SERIAL PRIMARY KEY,
      message TEXT,
      user_id SERIAL REFERENCES rusty_app_user(id)
    );"#,
-    )
-    .execute(&*pool)
-    .await?;
+        )
+        .execute(lock)
+        .await?;
+    }
 
     // server
     let listener = TcpListener::bind(address).await?;
@@ -106,7 +110,6 @@ async fn main() -> Result<()> {
         tx_accomodate,
         tx_listen,
         Arc::clone(&pool),
-        Arc::clone(&lock),
     ));
     let broadcasting_task = tokio::task::spawn(accomodate_and_broadcast(
         rx_accomodate,

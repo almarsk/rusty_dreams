@@ -7,14 +7,13 @@ use tokio::sync::Mutex;
 pub async fn login_db(
     nick: &str,
     pass: &str,
-    pool: Arc<PgPool>,
-    lock: Arc<Mutex<()>>,
+    pool: Arc<Mutex<PgPool>>,
 ) -> Result<(i32, bool), ChatError> {
     // check db
-    let _lock = lock.lock().await;
+    let lock = pool.lock().await;
 
     match sqlx::query!("SELECT * FROM rusty_app_user WHERE nick = $1", nick)
-        .fetch_one(&*pool)
+        .fetch_one(&*lock)
         .await
     {
         Err(_) => {
@@ -24,7 +23,7 @@ pub async fn login_db(
                 nick,
                 pass
             )
-            .fetch_one(&*pool)
+            .fetch_one(&*lock)
             .await
             .map_err(|_| ChatError::DatabaseIssue)?;
 

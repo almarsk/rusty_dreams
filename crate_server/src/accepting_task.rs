@@ -17,8 +17,7 @@ pub async fn accepting_task<'a>(
     listener: TcpListener,
     tx_broadcast: Sender<Task>,
     tx_listen: Sender<Task>,
-    pool: Arc<sqlx::PgPool>,
-    lock: Arc<Mutex<()>>,
+    pool: Arc<Mutex<sqlx::PgPool>>,
 ) -> Result<(), ChatError> {
     loop {
         let (socket, address) = listener
@@ -74,23 +73,22 @@ pub async fn accepting_task<'a>(
             "".to_string()
         };
 
-        let (client_id, back) =
-            match login_db(&nick, &pass, Arc::clone(&pool), Arc::clone(&lock)).await {
-                Err(_) => {
-                    log::error!("invalid login from {}", address);
-                    if let Err(e) = send_message(
-                        &mut writer,
-                        ToSerialize(".refuse", "system"),
-                        Client(&address),
-                    )
-                    .await
-                    {
-                        log::error!("issue sending login info to client {}", e)
-                    };
-                    continue;
-                }
-                Ok(id) => id,
-            };
+        let (client_id, back) = match login_db(&nick, &pass, Arc::clone(&pool)).await {
+            Err(_) => {
+                log::error!("invalid login from {}", address);
+                if let Err(e) = send_message(
+                    &mut writer,
+                    ToSerialize(".refuse", "system"),
+                    Client(&address),
+                )
+                .await
+                {
+                    log::error!("issue sending login info to client {}", e)
+                };
+                continue;
+            }
+            Ok(id) => id,
+        };
 
         if let Err(e) = send_message(
             &mut writer,
