@@ -2,9 +2,16 @@ use std::sync::Arc;
 
 use message::ChatError;
 use sqlx::PgPool;
+use tokio::sync::Mutex;
 
-pub async fn login_db(nick: &str, pass: &str, pool: Arc<PgPool>) -> Result<i32, ChatError> {
+pub async fn login_db(
+    nick: &str,
+    pass: &str,
+    pool: Arc<PgPool>,
+    lock: Arc<Mutex<()>>,
+) -> Result<(i32, bool), ChatError> {
     // check db
+    let _lock = lock.lock().await;
 
     match sqlx::query!("SELECT * FROM rusty_app_user WHERE nick = $1", nick)
         .fetch_one(&*pool)
@@ -21,20 +28,20 @@ pub async fn login_db(nick: &str, pass: &str, pool: Arc<PgPool>) -> Result<i32, 
             .await
             .map_err(|_| ChatError::DatabaseIssue)?;
 
-            Ok(record.id)
+            Ok((record.id, false))
         }
         Ok(record) => {
             log::info!("user exists, lets check if pass ok");
             if let Some(db_pass) = record.pass {
                 if db_pass == pass {
                     log::info!("it is");
-                    Ok(record.id)
+                    Ok((record.id, true))
                 } else {
                     log::info!("wrong password {}", nick);
                     Err(ChatError::LoginIssue)
                 }
             } else {
-                Ok(record.id)
+                Ok((record.id, true))
             }
         }
     }

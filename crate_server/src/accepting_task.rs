@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use flume::Sender;
-use tokio::io::AsyncReadExt;
 use tokio::net::TcpListener;
+use tokio::{io::AsyncReadExt, sync::Mutex};
 
 use crate::check_db::login_db;
 
@@ -18,6 +18,7 @@ pub async fn accepting_task<'a>(
     tx_broadcast: Sender<Task>,
     tx_listen: Sender<Task>,
     pool: Arc<sqlx::PgPool>,
+    lock: Arc<Mutex<()>>,
 ) -> Result<(), ChatError> {
     loop {
         let (socket, address) = listener
@@ -73,22 +74,23 @@ pub async fn accepting_task<'a>(
             "".to_string()
         };
 
-        let client_id = match login_db(&nick, &pass, Arc::clone(&pool)).await {
-            Err(_) => {
-                log::error!("invalid login from {}", address);
-                if let Err(e) = send_message(
-                    &mut writer,
-                    ToSerialize(".refuse", "system"),
-                    Client(&address),
-                )
-                .await
-                {
-                    log::error!("issue sending login info to client {}", e)
-                };
-                continue;
-            }
-            Ok(id) => id,
-        };
+        let (client_id, back) =
+            match login_db(&nick, &pass, Arc::clone(&pool), Arc::clone(&lock)).await {
+                Err(_) => {
+                    log::error!("invalid login from {}", address);
+                    if let Err(e) = send_message(
+                        &mut writer,
+                        ToSerialize(".refuse", "system"),
+                        Client(&address),
+                    )
+                    .await
+                    {
+                        log::error!("issue sending login info to client {}", e)
+                    };
+                    continue;
+                }
+                Ok(id) => id,
+            };
 
         if let Err(e) = send_message(
             &mut writer,
@@ -100,10 +102,15 @@ pub async fn accepting_task<'a>(
             log::error!("issue sending login info to client {}", e)
         };
 
+        let back = match back {
+            true => " back",
+            false => "",
+        };
+
         // welcoming new client
         if let Err(e) = send_message(
             &mut writer,
-            ToSerialize(format!("welcome, {}", nick).as_str(), "system"), // todo add nick
+            ToSerialize(format!("welcome{}, {}", back, nick).as_str(), "system"), // todo add nick
             Client(&address),
         )
         .await

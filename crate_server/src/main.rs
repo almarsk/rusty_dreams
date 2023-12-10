@@ -4,7 +4,7 @@ use dotenv::dotenv;
 use env_logger::Builder;
 use flume::{bounded, Receiver, Sender};
 use sqlx::postgres::PgPoolOptions;
-use tokio::{net::TcpListener, try_join};
+use tokio::{net::TcpListener, sync::Mutex, try_join};
 
 mod accepting_task;
 use accepting_task::accepting_task;
@@ -99,13 +99,22 @@ async fn main() -> Result<()> {
     let (tx_send, rx_send): Senders = bounded(10);
     log::info!("starting a new server");
 
+    let lock = Arc::new(Mutex::new(()));
+
     let accepting_task = tokio::task::spawn(accepting_task(
         listener,
         tx_accomodate,
         tx_listen,
         Arc::clone(&pool),
+        Arc::clone(&lock),
     ));
-    let broadcasting_task = tokio::task::spawn(accomodate_and_broadcast(rx_accomodate, rx_send));
+    let broadcasting_task = tokio::task::spawn(accomodate_and_broadcast(
+        rx_accomodate,
+        rx_send,
+        Arc::clone(&pool),
+        Arc::clone(&lock),
+    ));
+
     let listening_task = tokio::task::spawn(listen(rx_listen, tx_send));
 
     // not too happy with this

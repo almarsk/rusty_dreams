@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 use tokio::{io::ReadHalf, io::WriteHalf, net::TcpStream};
 
+#[derive(Debug)]
 pub enum Task {
     ConnWrite(SocketAddr, WriteHalf<TcpStream>),
     // the i32 is user id
