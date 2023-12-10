@@ -1,3 +1,5 @@
+\*\*\*missing writing messages in database\*\*\*
+
 Welcome to the rusty chat app.
 
 What it does:
