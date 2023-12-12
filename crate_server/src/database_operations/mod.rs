@@ -50,15 +50,14 @@ pub async fn database_operations(
 
     log::info!("databse all setup");
 
-    log::info!("test db task: {:?}", rx_user.recv());
-
     loop {
-        while let Ok(dt) = rx_user.recv() {
+        while let Ok(dt) = rx_user.recv_async().await {
             match dt {
                 DatabaseTask::LoginRequest((nick, pass)) => {
                     let login_result = login_db(&nick, &pass, &pool).await;
                     if tx_user_confirm
-                        .send(DatabaseTask::LoginConfirmation(login_result))
+                        .send_async(DatabaseTask::LoginConfirmation(login_result))
+                        .await
                         .is_err()
                     {
                         log::error!("couldnt send Login confirmation")

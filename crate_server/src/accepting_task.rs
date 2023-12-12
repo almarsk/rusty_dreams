@@ -19,11 +19,7 @@ pub async fn accepting_task<'a>(
     rx_user_confirm: Receiver<DatabaseTask>,
 ) -> Result<(), ChatError> {
     loop {
-        log::info!("listening for knowcks");
-
-        tx_user
-            .send(DatabaseTask::Message((vec![0], 1)))
-            .map_err(|_| ChatError::DatabaseIssue)?;
+        log::info!("listening for knocks");
 
         let (socket, address) = listener
             .accept()
@@ -79,13 +75,14 @@ pub async fn accepting_task<'a>(
         };
 
         tx_user
-            .send(DatabaseTask::LoginRequest((nick.clone(), pass.clone())))
+            .send_async(DatabaseTask::LoginRequest((nick.clone(), pass.clone())))
+            .await
             .map_err(|_| ChatError::DatabaseIssue)?;
 
         log::info!("waiting for response from database task on login validity");
-        let (client_id, back) = match rx_user_confirm.recv() {
+        let (client_id, back) = match rx_user_confirm.recv_async().await {
             Err(_) => {
-                log::error!("invalid login from {}", address);
+                log::error!("internal issue {}", address);
                 if let Err(e) = send_message(
                     &mut writer,
                     ToSerialize(".refuse", "system"),
@@ -97,19 +94,29 @@ pub async fn accepting_task<'a>(
                 };
                 continue;
             }
-            Ok(db_task) => {
-                if let DatabaseTask::LoginConfirmation(r) = db_task {
-                    if let Ok(id) = r {
-                        id
-                    } else {
-                        log::error!("something fishy coming instead login confirmation");
+            Ok(db_task) => match db_task {
+                DatabaseTask::LoginConfirmation(r) => match r {
+                    Ok((client_id, back)) => (client_id, back),
+                    Err(e) => {
+                        log::error!("invalid login from {} {}", address, e);
+                        if let Err(e) = send_message(
+                            &mut writer,
+                            ToSerialize(".refuse", "system"),
+                            Client(&address),
+                        )
+                        .await
+                        {
+                            log::error!("issue sending login info to client {}", e)
+                        };
                         continue;
                     }
-                } else {
-                    log::error!("something fishy coming instead login confirmation");
+                },
+
+                e => {
+                    log::error!("something fishy coming instead login confirmation: {:?}", e);
                     continue;
                 }
-            }
+            },
         };
 
         if let Err(e) = send_message(

@@ -13,7 +13,10 @@ pub async fn get_buffer(reader: &mut ReadHalf<TcpStream>) -> Result<Vec<u8>, Cha
                 let len = u32::from_be_bytes(len_bytes) as usize;
                 return Ok(vec![0u8; len]);
             }
-            Err(_) => return Err(ChatError::ReadingIssue),
+            Err(_) => {
+                log::info!("oh shoot");
+                return Err(ChatError::ReadingIssue);
+            }
         }
     }
 }

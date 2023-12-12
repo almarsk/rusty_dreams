@@ -43,6 +43,7 @@ impl Message {
         } else if input.starts_with(".image ") {
             build_message(nick, input, MessageType::Image(vec![]))
         } else if input.starts_with(".accept") {
+            log::info!("they lettin us in");
             Ok(Message {
                 content: MessageType::Welcome(Ok(())),
                 nick: "system".to_string(),

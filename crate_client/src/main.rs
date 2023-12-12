@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let _ = tokio::try_join!(write_task, read_task)?;
         }
-        MessageType::Welcome(Err(e)) => log::error!("{}", e),
+        MessageType::Welcome(Err(e)) => log::error!("nope - {}", e),
         _ => log::error!("Something fishy"),
     };
 
