@@ -1,10 +1,8 @@
-use std::sync::Arc;
-
-use flume::Sender;
+use flume::{Receiver, Sender};
+use tokio::io::AsyncReadExt;
 use tokio::net::TcpListener;
-use tokio::{io::AsyncReadExt, sync::Mutex};
 
-use crate::check_db::login_db;
+use crate::task_type::DatabaseTask;
 
 use super::task_type::Task;
 
@@ -17,19 +15,26 @@ pub async fn accepting_task<'a>(
     listener: TcpListener,
     tx_broadcast: Sender<Task>,
     tx_listen: Sender<Task>,
-    pool: Arc<Mutex<sqlx::PgPool>>,
+    tx_user: Sender<DatabaseTask>,
+    rx_user_confirm: Receiver<DatabaseTask>,
 ) -> Result<(), ChatError> {
     loop {
+        log::info!("listening for knowcks");
+
+        tx_user
+            .send(DatabaseTask::Message((vec![0], 1)))
+            .map_err(|_| ChatError::DatabaseIssue)?;
+
         let (socket, address) = listener
             .accept()
             .await
             .map_err(|_| ChatError::AcceptanceIssue)?;
 
+        log::info!("someone knocking");
+
         let tx_clone_b = tx_broadcast.clone();
         let tx_clone_l = tx_listen.clone();
         let (mut reader, mut writer) = tokio::io::split(socket);
-
-        // TODO
 
         // read pss and nick from reader
         // check validity
@@ -73,7 +78,12 @@ pub async fn accepting_task<'a>(
             "".to_string()
         };
 
-        let (client_id, back) = match login_db(&nick, &pass, Arc::clone(&pool)).await {
+        tx_user
+            .send(DatabaseTask::LoginRequest((nick.clone(), pass.clone())))
+            .map_err(|_| ChatError::DatabaseIssue)?;
+
+        log::info!("waiting for response from database task on login validity");
+        let (client_id, back) = match rx_user_confirm.recv() {
             Err(_) => {
                 log::error!("invalid login from {}", address);
                 if let Err(e) = send_message(
@@ -87,7 +97,19 @@ pub async fn accepting_task<'a>(
                 };
                 continue;
             }
-            Ok(id) => id,
+            Ok(db_task) => {
+                if let DatabaseTask::LoginConfirmation(r) = db_task {
+                    if let Ok(id) = r {
+                        id
+                    } else {
+                        log::error!("something fishy coming instead login confirmation");
+                        continue;
+                    }
+                } else {
+                    log::error!("something fishy coming instead login confirmation");
+                    continue;
+                }
+            }
         };
 
         if let Err(e) = send_message(

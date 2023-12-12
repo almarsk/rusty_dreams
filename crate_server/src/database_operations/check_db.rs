@@ -1,19 +1,11 @@
-use std::sync::Arc;
-
 use message::ChatError;
 use sqlx::PgPool;
-use tokio::sync::Mutex;
 
-pub async fn login_db(
-    nick: &str,
-    pass: &str,
-    pool: Arc<Mutex<PgPool>>,
-) -> Result<(i32, bool), ChatError> {
+pub async fn login_db(nick: &str, pass: &str, pool: &PgPool) -> Result<(i32, bool), ChatError> {
     // check db
-    let lock = pool.lock().await;
 
     match sqlx::query!("SELECT * FROM rusty_app_user WHERE nick = $1", nick)
-        .fetch_one(&*lock)
+        .fetch_one(pool)
         .await
     {
         Err(_) => {
@@ -23,7 +15,7 @@ pub async fn login_db(
                 nick,
                 pass
             )
-            .fetch_one(&*lock)
+            .fetch_one(pool)
             .await
             .map_err(|_| ChatError::DatabaseIssue)?;
 

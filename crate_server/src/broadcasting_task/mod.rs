@@ -21,8 +21,6 @@ use broadcast_message::broadcast_message;
 pub async fn accomodate_and_broadcast(
     rx_accomodate: Receiver<Task>,
     rx_broadcast: Receiver<(Task, i32)>,
-    pool: Arc<TokioMutex<sqlx::PgPool>>,
-    lock: Arc<TokioMutex<()>>,
 ) {
     let clients: Arc<Mutex<HashMap<SocketAddr, WriteHalf<TcpStream>>>> =
         Arc::new(Mutex::new(HashMap::new()));
@@ -53,20 +51,7 @@ pub async fn accomodate_and_broadcast(
             while let Ok(t) = rx_broadcast.recv() {
                 match t.0 {
                     Task::Message(a, m) => {
-                        /*
-                        let lock = pool.lock().await;
-                        match sqlx::query(
-                            "INSERT INTO rusty_app_message (message, user_id) VALUES ($1, $2)",
-                        )
-                        .bind(&Message::deserialize(&m).unwrap().into_db())
-                        .bind(t.1)
-                        .execute(&*lock)
-                        .await
-                        {
-                            Ok(_) => log::info!("message inserted"),
-                            Err(e) => log::error!("{e}"),
-                        };
-                        */
+                        log::info!("TODO!! SEND MESSAGE TO DATABASE TASK");
 
                         log::info!("new message lets broadcast");
                         broadcast_message(a, m.clone(), &clients).await;

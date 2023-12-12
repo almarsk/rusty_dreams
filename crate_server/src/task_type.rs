@@ -1,3 +1,4 @@
+use message::ChatError;
 use std::net::SocketAddr;
 use tokio::{io::ReadHalf, io::WriteHalf, net::TcpStream};
 
@@ -7,4 +8,11 @@ pub enum Task {
     // the i32 is user id
     ConnRead(SocketAddr, ReadHalf<TcpStream>, i32),
     Message(SocketAddr, Vec<u8>),
+}
+
+#[derive(Debug)]
+pub enum DatabaseTask {
+    LoginRequest((String, String)),
+    LoginConfirmation(Result<(i32, bool), ChatError>),
+    Message((Vec<u8>, i32)),
 }
