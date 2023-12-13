@@ -56,12 +56,13 @@ pub async fn accomodate_and_broadcast(
                     Task::Message(a, m) => {
                         log::info!("TODO!! SEND MESSAGE TO DATABASE TASK");
 
-                        log::info!("sending message over to write into db");
-                        if let Err(e) = tx_user
-                            .send_async(DatabaseTask::Message((m.clone(), client_id)))
-                            .await
-                        {
+                        let message_to_write_in_db = DatabaseTask::Message((m.clone(), client_id));
+
+                        log::info!("writin in db: {:?}", message_to_write_in_db);
+                        if let Err(e) = tx_user.send_async(message_to_write_in_db).await {
                             log::error!("{}", e)
+                        } else {
+                            log::info!("message sent off to the db");
                         };
 
                         log::info!("new message lets broadcast");

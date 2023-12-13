@@ -70,20 +70,17 @@ async fn main() -> Result<()> {
         bounded(10);
     log::info!("starting a new server");
 
-    let database_task = tokio::task::spawn(database_operations(rx_user, tx_user_confirm));
-    let broadcasting_task = tokio::task::spawn(accomodate_and_broadcast(
-        rx_accomodate,
-        rx_send,
-        tx_user.clone(),
-    ));
     let accepting_task = tokio::task::spawn(accepting_task(
         listener,
         tx_accomodate,
         tx_listen,
-        tx_user,
+        tx_user.clone(),
         rx_user_confirm,
     ));
+    let broadcasting_task =
+        tokio::task::spawn(accomodate_and_broadcast(rx_accomodate, rx_send, tx_user));
     let listening_task = tokio::task::spawn(listen(rx_listen, tx_send));
+    let database_task = tokio::task::spawn(database_operations(rx_user, tx_user_confirm));
 
     // not too happy with this
     match try_join!(

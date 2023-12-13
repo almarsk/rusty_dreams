@@ -52,9 +52,8 @@ pub async fn database_operations(
 
     loop {
         log::info!("waiting for databse task");
-        if let Ok(dt) = rx_user.recv_async().await {
-            log::info!("new db task");
-            match dt {
+        match rx_user.recv_async().await {
+            Ok(dt) => match dt {
                 DatabaseTask::LoginRequest((nick, pass)) => {
                     let login_result = login_db(&nick, &pass, &pool).await;
                     if tx_user_confirm
@@ -63,6 +62,8 @@ pub async fn database_operations(
                         .is_err()
                     {
                         log::error!("couldnt send Login confirmation")
+                    } else {
+                        log::info!("login info sent")
                     };
                 }
                 DatabaseTask::Message((message, user_id)) => {
@@ -80,9 +81,8 @@ pub async fn database_operations(
                     }
                 }
                 _ => log::info!("Something fishy coming into database task"),
-            }
-        } else {
-            log::error!("issue writing message in db")
+            },
+            Err(e) => log::error!("issue writing message in db: {}", e),
         }
     }
 }
