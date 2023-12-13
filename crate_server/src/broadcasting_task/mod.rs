@@ -7,11 +7,13 @@ use std::{
 };
 
 use dotenv::dotenv;
-use flume::Receiver;
+use flume::{Receiver, Sender};
 
 use message::{ChatError, Message};
 use sqlx::postgres::PgPoolOptions;
 use tokio::{io::WriteHalf, net::TcpStream, sync::Mutex as TokioMutex};
+
+use crate::task_type::DatabaseTask;
 
 use super::task_type::Task;
 
@@ -21,6 +23,7 @@ use broadcast_message::broadcast_message;
 pub async fn accomodate_and_broadcast(
     rx_accomodate: Receiver<Task>,
     rx_broadcast: Receiver<(Task, i32)>,
+    tx_user: Sender<DatabaseTask>,
 ) {
     let clients: Arc<Mutex<HashMap<SocketAddr, WriteHalf<TcpStream>>>> =
         Arc::new(Mutex::new(HashMap::new()));
@@ -48,10 +51,18 @@ pub async fn accomodate_and_broadcast(
     // broadcasting task
     tokio::task::spawn(async move {
         loop {
-            while let Ok(t) = rx_broadcast.recv() {
-                match t.0 {
+            while let Ok((task, client_id)) = rx_broadcast.recv() {
+                match task {
                     Task::Message(a, m) => {
                         log::info!("TODO!! SEND MESSAGE TO DATABASE TASK");
+
+                        log::info!("sending message over to write into db");
+                        if let Err(e) = tx_user
+                            .send_async(DatabaseTask::Message((m.clone(), client_id)))
+                            .await
+                        {
+                            log::error!("{}", e)
+                        };
 
                         log::info!("new message lets broadcast");
                         broadcast_message(a, m.clone(), &clients).await;

@@ -31,7 +31,7 @@ pub async fn read(mut reader: ReadHalf<TcpStream>, nick: String) -> Result<(), C
                             log::info!("{}: {}", incoming_message.nick, text)
                         }
                         MessageType::File(name, data) => {
-                            log::info!("incoming file from {}", incoming_message.nick);
+                            log::info!("incoming file called {}", name);
                             receive_and_save(MessageType::File(name, data), &nick)?;
                         }
                         MessageType::Image(data) => {

@@ -1,5 +1,5 @@
 use flume::{Receiver, Sender};
-use message::ChatError;
+use message::{ChatError, Message};
 use sqlx::postgres::PgPoolOptions;
 
 use crate::task_type::DatabaseTask;
@@ -51,7 +51,9 @@ pub async fn database_operations(
     log::info!("databse all setup");
 
     loop {
-        while let Ok(dt) = rx_user.recv_async().await {
+        log::info!("waiting for databse task");
+        if let Ok(dt) = rx_user.recv_async().await {
+            log::info!("new db task");
             match dt {
                 DatabaseTask::LoginRequest((nick, pass)) => {
                     let login_result = login_db(&nick, &pass, &pool).await;
@@ -64,10 +66,23 @@ pub async fn database_operations(
                     };
                 }
                 DatabaseTask::Message((message, user_id)) => {
-                    message_into_db(&pool, user_id, &message).await;
+                    log::info!("its a message");
+
+                    let message = Message::deserialize(&message)
+                        .map_err(|_| ChatError::DeserializingIssue)?
+                        .into_db();
+
+                    if let Some(m) = message {
+                        message_into_db(&pool, user_id, &m).await;
+                    } else {
+                        log::info!("Something fishy coming into database task");
+                        return Err(ChatError::WritingIssue);
+                    }
                 }
                 _ => log::info!("Something fishy coming into database task"),
             }
+        } else {
+            log::error!("issue writing message in db")
         }
     }
 }

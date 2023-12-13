@@ -146,10 +146,12 @@ pub async fn accepting_task<'a>(
         };
 
         tx_clone_b
-            .send(Task::ConnWrite(address, writer))
+            .send_async(Task::ConnWrite(address, writer))
+            .await
             .map_err(|_| ChatError::AccomodationIssue)?;
         tx_clone_l
-            .send(Task::ConnRead(address, reader, client_id))
+            .send_async(Task::ConnRead(address, reader, client_id))
+            .await
             .map_err(|_| ChatError::AccomodationIssue)?;
     }
 }

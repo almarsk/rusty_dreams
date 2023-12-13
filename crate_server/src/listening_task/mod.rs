@@ -18,6 +18,7 @@ pub async fn listen(
                 match t {
                     Task::ConnRead(a, mut c, client_id) => {
                         let tx_clone = tx.clone();
+
                         tokio::task::spawn(async move {
                             if read_from_socket(&mut c, tx_clone, a, client_id)
                                 .await

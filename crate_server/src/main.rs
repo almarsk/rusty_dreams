@@ -60,16 +60,22 @@ async fn main() -> Result<()> {
 
     // server
     let listener = TcpListener::bind(address).await?;
+
+    // im not actually sure if all this is necessary, avoiding mpmc
     let (tx_accomodate, rx_accomodate): (Sender<Task>, Receiver<Task>) = bounded(10);
     let (tx_listen, rx_listen): (Sender<Task>, Receiver<Task>) = bounded(10);
     let (tx_send, rx_send): Senders = bounded(10);
     let (tx_user, rx_user): (Sender<DatabaseTask>, Receiver<DatabaseTask>) = bounded(10);
     let (tx_user_confirm, rx_user_confirm): (Sender<DatabaseTask>, Receiver<DatabaseTask>) =
         bounded(10);
-    let (_tx_message, _rx_message): (Sender<DatabaseTask>, Receiver<DatabaseTask>) = bounded(10);
     log::info!("starting a new server");
 
     let database_task = tokio::task::spawn(database_operations(rx_user, tx_user_confirm));
+    let broadcasting_task = tokio::task::spawn(accomodate_and_broadcast(
+        rx_accomodate,
+        rx_send,
+        tx_user.clone(),
+    ));
     let accepting_task = tokio::task::spawn(accepting_task(
         listener,
         tx_accomodate,
@@ -77,7 +83,6 @@ async fn main() -> Result<()> {
         tx_user,
         rx_user_confirm,
     ));
-    let broadcasting_task = tokio::task::spawn(accomodate_and_broadcast(rx_accomodate, rx_send));
     let listening_task = tokio::task::spawn(listen(rx_listen, tx_send));
 
     // not too happy with this
