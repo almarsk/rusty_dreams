@@ -4,7 +4,7 @@ use flume::Sender;
 use tokio::net::TcpListener;
 use tokio::{io::AsyncReadExt, sync::Mutex};
 
-use crate::check_db::login_db;
+use crate::check_db::{history, login_db};
 
 use super::task_type::Task;
 
@@ -73,7 +73,7 @@ pub async fn accepting_task<'a>(
             "".to_string()
         };
 
-        let (client_id, back) = match login_db(&nick, &pass, Arc::clone(&pool)).await {
+        let (_, back) = match login_db(&nick, &pass, Arc::clone(&pool)).await {
             Err(_) => {
                 log::error!("invalid login from {}", address);
                 if let Err(e) = send_message(
@@ -105,10 +105,15 @@ pub async fn accepting_task<'a>(
             false => "",
         };
 
+        let history = history(Arc::clone(&pool)).await;
+
         // welcoming new client
         if let Err(e) = send_message(
             &mut writer,
-            ToSerialize(format!("welcome{}, {}", back, nick).as_str(), "system"), // todo add nick
+            ToSerialize(
+                format!("{}\nwelcome{}, {}", history, back, nick.clone()).as_str(),
+                "system",
+            ), // todo add nick
             Client(&address),
         )
         .await
@@ -121,7 +126,7 @@ pub async fn accepting_task<'a>(
             .await
             .map_err(|_| ChatError::AccomodationIssue)?;
         tx_clone_l
-            .send_async(Task::ConnRead(address, reader, client_id))
+            .send_async(Task::ConnRead(address, reader, nick))
             .await
             .map_err(|_| ChatError::AccomodationIssue)?;
     }

@@ -18,7 +18,7 @@ mod check_db;
 
 use std::{io::Write, net::SocketAddr, sync::Arc};
 
-type Senders = (Sender<(Task, i32)>, Receiver<(Task, i32)>);
+type Senders = (Sender<Task>, Receiver<Task>);
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -89,7 +89,7 @@ async fn main() -> Result<()> {
    CREATE TABLE IF NOT EXISTS rusty_app_message (
      id SERIAL PRIMARY KEY,
      message TEXT,
-     user_id SERIAL REFERENCES rusty_app_user(id)
+     nick TEXT
    );"#,
         )
         .execute(lock)

@@ -20,6 +20,14 @@ impl MessageType {
     pub fn deserialize(from: &[u8]) -> Result<Self, BincodeError> {
         bincode::deserialize(from)
     }
+    pub fn into_db(&self) -> Option<String> {
+        match self {
+            MessageType::File(name, _) => Some(format!("incoming file called {}", name)),
+            MessageType::Text(text) => Some(text.clone()),
+            MessageType::Image(_) => Some(String::from("")),
+            MessageType::Welcome(_) => None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -43,6 +51,7 @@ impl Message {
         } else if input.starts_with(".image ") {
             build_message(nick, input, MessageType::Image(vec![]))
         } else if input.starts_with(".accept") {
+            log::info!("they lettin us in");
             Ok(Message {
                 content: MessageType::Welcome(Ok(())),
                 nick: "system".to_string(),
@@ -61,7 +70,7 @@ impl Message {
         }
     }
 
-    pub fn into_db(&self) -> String {
-        String::from("sup")
+    pub fn into_db(&self) -> Option<String> {
+        self.content.into_db()
     }
 }

@@ -4,7 +4,6 @@ use tokio::{io::ReadHalf, io::WriteHalf, net::TcpStream};
 #[derive(Debug)]
 pub enum Task {
     ConnWrite(SocketAddr, WriteHalf<TcpStream>),
-    // the i32 is user id
-    ConnRead(SocketAddr, ReadHalf<TcpStream>, i32),
-    Message(SocketAddr, Vec<u8>),
+    ConnRead(SocketAddr, ReadHalf<TcpStream>, String),
+    Message(SocketAddr, Vec<u8>, String),
 }

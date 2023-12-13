@@ -20,7 +20,7 @@ use broadcast_message::broadcast_message;
 
 pub async fn accomodate_and_broadcast(
     rx_accomodate: Receiver<Task>,
-    rx_broadcast: Receiver<(Task, i32)>,
+    rx_broadcast: Receiver<Task>,
     pool: Arc<TokioMutex<sqlx::PgPool>>,
     lock: Arc<TokioMutex<()>>,
 ) {
@@ -51,14 +51,15 @@ pub async fn accomodate_and_broadcast(
     tokio::task::spawn(async move {
         loop {
             while let Ok(t) = rx_broadcast.recv_async().await {
-                match t.0 {
-                    Task::Message(a, m) => {
+                match t {
+                    Task::Message(a, m, nick) => {
                         let lock = pool.lock().await;
+                        log::info!("into db message from {}", nick);
                         match sqlx::query(
-                            "INSERT INTO rusty_app_message (message, user_id) VALUES ($1, $2)",
+                            "INSERT INTO rusty_app_message (message, nick) VALUES ($1, $2)",
                         )
                         .bind(&Message::deserialize(&m).unwrap().into_db())
-                        .bind(t.1)
+                        .bind(nick)
                         .execute(&*lock)
                         .await
                         {

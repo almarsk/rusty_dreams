@@ -45,3 +45,22 @@ pub async fn login_db(
         }
     }
 }
+
+pub async fn history(pool: Arc<Mutex<PgPool>>) -> String {
+    let lock = pool.lock().await;
+
+    match sqlx::query!("SELECT * FROM rusty_app_message")
+        .fetch_all(&*lock)
+        .await
+    {
+        Err(_) => "".to_string(),
+        Ok(records) => records.into_iter().fold(String::from(""), |mut acc, r| {
+            if let Some(message) = r.message {
+                if let Some(nick) = r.nick {
+                    acc.push_str(format!("\n{}: {}", nick, message).as_str());
+                }
+            }
+            acc
+        }),
+    }
+}
