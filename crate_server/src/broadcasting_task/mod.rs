@@ -50,10 +50,9 @@ pub async fn accomodate_and_broadcast(
     // broadcasting task
     tokio::task::spawn(async move {
         loop {
-            while let Ok(t) = rx_broadcast.recv() {
+            while let Ok(t) = rx_broadcast.recv_async().await {
                 match t.0 {
                     Task::Message(a, m) => {
-                        /*
                         let lock = pool.lock().await;
                         match sqlx::query(
                             "INSERT INTO rusty_app_message (message, user_id) VALUES ($1, $2)",
@@ -66,7 +65,6 @@ pub async fn accomodate_and_broadcast(
                             Ok(_) => log::info!("message inserted"),
                             Err(e) => log::error!("{e}"),
                         };
-                        */
 
                         log::info!("new message lets broadcast");
                         broadcast_message(a, m.clone(), &clients).await;

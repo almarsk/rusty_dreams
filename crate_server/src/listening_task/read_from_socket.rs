@@ -25,7 +25,8 @@ pub async fn read_from_socket(
             Ok(0) => Ok(()),
             Ok(n) => {
                 log::info!("new message from {}", address);
-                tx.send((Task::Message(address, buffer[..n].to_vec()), client_id))
+                tx.send_async((Task::Message(address, buffer[..n].to_vec()), client_id))
+                    .await
                     .map_err(|_| ChatError::PassToSendIssue)
             }
             _ => Err(ChatError::OtherEndIssue),

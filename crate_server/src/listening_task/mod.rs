@@ -14,7 +14,7 @@ pub async fn listen(
         log::info!("starting accomodation task");
 
         loop {
-            while let Ok(t) = rx_accomodate.recv() {
+            while let Ok(t) = rx_accomodate.recv_async().await {
                 match t {
                     Task::ConnRead(a, mut c, client_id) => {
                         let tx_clone = tx.clone();
