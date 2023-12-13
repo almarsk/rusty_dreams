@@ -12,15 +12,25 @@ How to run it:
 
 0) setting up the database\
     start a .env file with a valid url to a postgres database\
-    in postgres shell start up two tables\
-            rusty_app_user\
-            rusty_app_message
+    in postgres shell start up two tables
 
-1) Clone the repo; cd into it
-2) In a terminal window run `cargo run --bin server`
-3) In another terminal window run `cargo run --bin client`
-4) Repeat step 3)
-5) Congrats, you have a running chatting app between two clients
+   CREATE TABLE IF NOT EXISTS rusty_app_user (\
+     id SERIAL PRIMARY KEY,\
+     nick TEXT,\
+     pass TEXT\
+   );
+   
+   CREATE TABLE IF NOT EXISTS rusty_app_message (\
+     id SERIAL PRIMARY KEY,\
+     message TEXT,\
+     nick TEXT\
+   );
+   
+2) Clone the repo; cd into it
+3) In a terminal window run `cargo run --bin server`
+4) In another terminal window run `cargo run --bin client`
+5) Repeat step 3)
+6) Congrats, you have a running chatting app between two clients
 
 Features:
 
