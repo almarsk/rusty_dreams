@@ -3,8 +3,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::ChatError;
 
-use super::build_message::build_message;
+use super::build_message::build_message_w_path;
 
+/// This enum hold the message and it's metadata.
+///
+/// The Welcome variant is for when the server either accepts or refuses the login
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MessageType {
     Text(String),
@@ -24,7 +27,7 @@ impl MessageType {
         match self {
             MessageType::File(name, _) => Some(format!("incoming file called {}", name)),
             MessageType::Text(text) => Some(text.clone()),
-            MessageType::Image(_) => Some(String::from("")),
+            MessageType::Image(_) => Some("incoming image".to_string()),
             MessageType::Welcome(_) => None,
         }
     }
@@ -47,9 +50,9 @@ impl Message {
         if input.starts_with(".quit") {
             std::process::exit(0)
         } else if input.starts_with(".file ") {
-            build_message(nick, input, MessageType::File("".to_string(), vec![]))
+            build_message_w_path(nick, input, MessageType::File("".to_string(), vec![]))
         } else if input.starts_with(".image ") {
-            build_message(nick, input, MessageType::Image(vec![]))
+            build_message_w_path(nick, input, MessageType::Image(vec![]))
         } else if input.starts_with(".accept") {
             log::info!("they lettin us in");
             Ok(Message {

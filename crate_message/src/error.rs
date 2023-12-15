@@ -35,4 +35,6 @@ pub enum ChatError {
     DatabaseIssue,
     #[error("Env issue")]
     EnvIssue,
+    #[error("This type of message doesn't require a path check")]
+    MessageTypePathIssue,
 }
