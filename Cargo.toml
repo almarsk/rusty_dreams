@@ -3,5 +3,6 @@
 members = [
     "crate_client",
     "crate_server",
-    "crate_message"
+    "crate_message",
+    "crate_web"
 ]
