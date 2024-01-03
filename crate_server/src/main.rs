@@ -15,6 +15,8 @@ use listening_task::listen;
 pub mod task_type;
 use task_type::Task;
 mod check_db;
+mod web_task;
+use web_task::web_task;
 
 use std::{io::Write, net::SocketAddr, sync::Arc};
 
@@ -27,17 +29,19 @@ struct Args {
     host: String,
     #[arg(long, default_value_t = String::from("11111"))]
     port: String,
+    #[arg(long, default_value_t = String::from("11111"))]
+    w_port: String,
 }
 
 impl Args {
-    fn deconstruct(self) -> (String, String) {
-        (self.host, self.port)
+    fn deconstruct(self) -> (String, String, String) {
+        (self.host, self.port, self.w_port)
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let (host, port) = Args::parse().deconstruct();
+    let (host, port, web_port) = Args::parse().deconstruct();
 
     // env_logger as backend for log here
     Builder::from_env(env_logger::Env::default().default_filter_or("info"))
@@ -120,8 +124,17 @@ async fn main() -> Result<()> {
 
     let listening_task = tokio::task::spawn(listen(rx_listen, tx_send));
 
+    let web_address: SocketAddr = if let Ok(a) = format!("{}:{}", host, web_port).parse() {
+        a
+    } else {
+        log::error!("cant use {}:{}, going default", host, web_port);
+        "127.0.0.1:11111".parse()?
+    };
+    let web_listener = TcpListener::bind(web_address).await?;
+    let web_task = tokio::task::spawn(web_task(web_listener));
+
     // not too happy with this
-    match try_join!(accepting_task, broadcasting_task, listening_task) {
+    match try_join!(accepting_task, broadcasting_task, listening_task, web_task) {
         Ok(i) => {
             if let Err(e) = i.0 {
                 log::error!("It failed: {}", e)

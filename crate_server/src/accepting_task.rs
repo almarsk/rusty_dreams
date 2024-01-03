@@ -29,13 +29,6 @@ pub async fn accepting_task<'a>(
         let tx_clone_l = tx_listen.clone();
         let (mut reader, mut writer) = tokio::io::split(socket);
 
-        // TODO
-
-        // read pss and nick from reader
-        // check validity
-        // if valid save and do the rest
-        // else print send not valid
-
         // reading login from client
         let mut buffer = get_buffer(&mut reader).await?;
         match reader.read(&mut buffer).await {
