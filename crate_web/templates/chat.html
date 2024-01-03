@@ -105,30 +105,58 @@
         <script>
             var nickname = "{{ nickname }}";
 
-            function sendMessage() {
+            async function sendMessage() {
                 var messageInput = document.getElementById("messageInput");
-                var chatMessages = document.getElementById("chatMessages");
-
                 var messageText = messageInput.value.trim();
 
                 if (messageText !== "") {
-                    var messageElement = document.createElement("div");
-                    messageElement.classList.add("message");
+                    try {
+                        const response = await fetch("/receive_message", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ message: messageText }),
+                        });
 
-                    var messageTime = document.createElement("span");
-                    messageTime.classList.add("message-time");
-                    messageTime.textContent = getCurrentTime();
-                    messageElement.appendChild(messageTime);
+                        if (response.ok) {
+                            const responseData = await response.json();
+                            console.log(responseData.message);
 
-                    var messageContent = document.createElement("span");
-                    messageContent.classList.add("message-content");
-                    messageContent.textContent = nickname + ": " + messageText;
-                    messageElement.appendChild(messageContent);
-
-                    chatMessages.appendChild(messageElement);
+                            var chatMessages =
+                                document.getElementById("chatMessages");
+                            var messageElement = createMessageElement(
+                                responseData.message,
+                            );
+                            chatMessages.appendChild(messageElement);
+                        } else {
+                            console.error(
+                                "Failed to send message to the backend",
+                            );
+                        }
+                    } catch (error) {
+                        console.error("Error during the fetch:", error);
+                    }
 
                     messageInput.value = "";
                 }
+            }
+
+            function createMessageElement(messageText) {
+                var messageElement = document.createElement("div");
+                messageElement.classList.add("message");
+
+                var messageTime = document.createElement("span");
+                messageTime.classList.add("message-time");
+                messageTime.textContent = getCurrentTime();
+                messageElement.appendChild(messageTime);
+
+                var messageContent = document.createElement("span");
+                messageContent.classList.add("message-content");
+                messageContent.textContent = nickname + ": " + messageText;
+                messageElement.appendChild(messageContent);
+
+                return messageElement;
             }
 
             function getCurrentTime() {

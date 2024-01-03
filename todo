@@ -1,0 +1,15 @@
+receive message path -
+    send message to backend to put in database
+    put in database
+
+check for valid user
+wrong password is a nono
+nonexistent user asks if there should be new user created
+
+pass all messages to state when logging in succesfully
+
+add a dropdown menu with all users + a trashcan icon to delete them
+
+if deleted, it wont delete the messages
+    but mark the nickname as deleted
+        - adjust in db - new field
