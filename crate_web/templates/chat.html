@@ -116,7 +116,7 @@
                             headers: {
                                 "Content-Type": "application/json",
                             },
-                            body: JSON.stringify({ message: messageText }),
+                            body: JSON.stringify({ message: messageText, nick: nickname }),
                         });
 
                         if (response.ok) {

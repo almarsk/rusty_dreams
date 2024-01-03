@@ -1,20 +1,20 @@
 use std::{fmt, net::SocketAddr};
 
-use tokio::{
-    io::{AsyncWriteExt, WriteHalf},
-    net::TcpStream,
-};
+use tokio::io::{AsyncWrite, AsyncWriteExt, WriteHalf};
 
 use crate::{ChatError, Message};
 
 use MaybeSerializedMessage::*;
 
 #[allow(clippy::needless_lifetimes)]
-pub async fn send_message<'a>(
-    writer: &mut WriteHalf<TcpStream>,
+pub async fn send_message<'a, T>(
+    writer: &mut WriteHalf<T>,
     input: MaybeSerializedMessage<'a>,
     addressee: Addressee<'a>,
-) -> Result<(), ChatError> {
+) -> Result<(), ChatError>
+where
+    T: AsyncWriteExt + AsyncWrite,
+{
     let input = match input {
         Serialized(i) => i,
         ToSerialize(t, nick) => Message::new(t, nick.to_string())?

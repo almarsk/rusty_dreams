@@ -1,11 +1,12 @@
 use env_logger::Builder;
+use tokio::net::TcpStream;
 
 use message::ChatError;
 
 use std::io::Write;
-use std::net::{SocketAddr, TcpStream};
+use std::net::SocketAddr;
 
-pub async fn connect_to_server(host: String, port: String) -> Result<(), ChatError> {
+pub async fn connect_to_server(host: String, port: String) -> Result<TcpStream, ChatError> {
     // env_logger as backend for log here
     Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format(|buf, record| {
@@ -27,10 +28,11 @@ pub async fn connect_to_server(host: String, port: String) -> Result<(), ChatErr
             .parse()
             .map_err(|_| ChatError::OtherEndIssue)?
     };
-    if TcpStream::connect(address).is_ok() {
-        log::info!("we on")
+    if let Ok(tcp_stream) = TcpStream::connect(address).await {
+        log::info!("we on");
+        Ok(tcp_stream)
     } else {
-        log::error!("we not on :((((")
-    };
-    Ok(())
+        log::error!("we not on :((((");
+        Err(ChatError::AcceptanceIssue)
+    }
 }

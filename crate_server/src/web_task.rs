@@ -9,7 +9,8 @@ use tokio::net::TcpListener;
 
 //use super::task_type::Task;
 
-use message::{get_buffer, ChatError};
+use message::{get_buffer, ChatError, Message};
+
 //    get_buffer, send_message, Addressee::*, ChatError, MaybeSerializedMessage::*, Message,
 //    MessageType,
 //};
@@ -32,6 +33,7 @@ pub async fn web_task<'a>(listener: TcpListener) -> Result<(), ChatError> {
         match reader.read(&mut buffer).await {
             Ok(n) if n > 0 => {
                 log::info!("processing message from web server on {}", address);
+                log::info!("{:?}", Message::deserialize(&buffer));
             }
             _ => {
                 log::error!("issue accepting message from web server");
