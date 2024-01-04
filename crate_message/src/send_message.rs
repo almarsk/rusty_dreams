@@ -2,7 +2,7 @@ use std::{fmt, net::SocketAddr};
 
 use tokio::io::{AsyncWrite, AsyncWriteExt, WriteHalf};
 
-use crate::{ChatError, Message};
+use crate::{ChatError, Message, MessageType};
 
 use MaybeSerializedMessage::*;
 
@@ -23,6 +23,12 @@ where
                 log::error!("issue serializing");
                 ChatError::SerializingIssue
             })?,
+        ToSerializeLogin(pass, nick) => {
+            Message::serialize_login(pass, nick.to_string()).map_err(|_| {
+                log::error!("issue serializing");
+                ChatError::SerializingIssue
+            })?
+        }
     };
 
     let len = input.len() as u32;
@@ -41,6 +47,7 @@ where
 pub enum MaybeSerializedMessage<'a> {
     Serialized(Vec<u8>),
     ToSerialize(&'a str, &'a str),
+    ToSerializeLogin(MessageType, &'a str),
 }
 
 pub enum Addressee<'a> {

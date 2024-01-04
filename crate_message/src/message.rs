@@ -14,6 +14,7 @@ pub enum MessageType {
     Image(Vec<u8>),
     File(String, Vec<u8>), // Filename and its content as bytes
     Welcome(Result<(), ChatError>),
+    Pass(String),
 }
 
 impl MessageType {
@@ -28,7 +29,7 @@ impl MessageType {
             MessageType::File(name, _) => Some(format!("incoming file called {}", name)),
             MessageType::Text(text) => Some(text.clone()),
             MessageType::Image(_) => Some("incoming image".to_string()),
-            MessageType::Welcome(_) => None,
+            _ => None,
         }
     }
 }
@@ -40,6 +41,13 @@ pub struct Message {
 }
 
 impl Message {
+    pub fn serialize_login(pass: MessageType, nick: String) -> Result<Vec<u8>, BincodeError> {
+        Message {
+            content: pass,
+            nick,
+        }
+        .serialize()
+    }
     pub fn serialize(&self) -> Result<Vec<u8>, BincodeError> {
         bincode::serialize(&self)
     }

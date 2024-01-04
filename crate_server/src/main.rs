@@ -131,7 +131,7 @@ async fn main() -> Result<()> {
         "127.0.0.1:11111".parse()?
     };
     let web_listener = TcpListener::bind(web_address).await?;
-    let web_task = tokio::task::spawn(web_task(web_listener));
+    let web_task = tokio::task::spawn(web_task(web_listener, Arc::clone(&pool)));
 
     // not too happy with this
     match try_join!(accepting_task, broadcasting_task, listening_task, web_task) {

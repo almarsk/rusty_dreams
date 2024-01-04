@@ -21,12 +21,8 @@ mod get_template;
 use get_template::get_template;
 mod connect_to_server;
 use connect_to_server::connect_to_server;
-
-#[derive(FromForm)]
-struct LoginForm {
-    username: String,
-    password: String,
-}
+mod login_backend;
+use login_backend::is_valid;
 
 #[derive(Serialize, Deserialize)]
 struct MessageFront {
@@ -34,16 +30,22 @@ struct MessageFront {
     nick: String,
 }
 
+#[derive(FromForm)]
+pub struct LoginForm {
+    pub username: String,
+    pub password: String,
+}
+
 #[rocket::post("/submit", data = "<form>")]
-fn submit(form: Form<LoginForm>) -> Flash<Redirect> {
+async fn submit(form: Form<LoginForm>, state: &State<SharedState>) -> Flash<Redirect> {
     println!("pass {}", form.password);
     println!("nick {}", form.username);
     let username = form.username.clone();
     //let is_valid = authenticate_user(&form.username, &form.password);
 
-    if true {
-        //is_valid {
-
+    let freed_tcp_stream = &mut *state.tcp_stream.lock().await;
+    let (mut reader, mut writer) = tokio::io::split(freed_tcp_stream);
+    if is_valid(&mut reader, &mut writer, form.into_inner()).await {
         Flash::success(Redirect::to(uri!(chat(username))), "Login succesful")
     } else {
         Flash::error(

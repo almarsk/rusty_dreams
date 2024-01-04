@@ -1243,6 +1243,7 @@ dependencies = [
  "chrono",
  "crossterm",
  "log",
+ "rocket",
  "serde",
  "thiserror",
  "tokio",
