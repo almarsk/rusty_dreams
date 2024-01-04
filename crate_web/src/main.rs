@@ -9,8 +9,10 @@ extern crate rocket;
 use clap::Parser;
 use rocket::form::Form;
 use rocket::response::content::RawHtml;
+use rocket::response::{Flash, Redirect};
 use rocket::serde::json::Json;
 use rocket::serde::{Deserialize, Serialize};
+use rocket::uri;
 use rocket::State;
 
 use message::{send_message, Addressee, MaybeSerializedMessage::*};
@@ -33,10 +35,28 @@ struct MessageFront {
 }
 
 #[rocket::post("/submit", data = "<form>")]
-fn submit(form: Form<LoginForm>) -> RawHtml<String> {
+fn submit(form: Form<LoginForm>) -> Flash<Redirect> {
     println!("pass {}", form.password);
+    println!("nick {}", form.username);
+    let username = form.username.clone();
+    //let is_valid = authenticate_user(&form.username, &form.password);
+
+    if true {
+        //is_valid {
+
+        Flash::success(Redirect::to(uri!(chat(username))), "Login succesful")
+    } else {
+        Flash::error(
+            Redirect::to(uri!(index_bool(Some(false)))),
+            "Invalid login credentials",
+        )
+    }
+}
+
+#[rocket::get("/chat_page/<username>")]
+fn chat(username: String) -> RawHtml<String> {
     let mut data = HashMap::new();
-    data.insert("nickname".to_string(), form.username.clone());
+    data.insert("nickname".to_string(), username);
     get_template("chat", Some(data))
 }
 
@@ -68,9 +88,18 @@ async fn receive_message(
     })
 }
 
-#[rocket::get("/")]
-fn index() -> RawHtml<String> {
-    get_template("login", None)
+#[rocket::get("/?<login>")]
+fn index_bool(login: Option<bool>) -> RawHtml<String> {
+    let mut login_map = HashMap::new();
+    login_map.insert(
+        "login_success".to_string(),
+        if let Some(false) = login {
+            "false".to_string()
+        } else {
+            "true".to_string()
+        },
+    );
+    get_template("login", Some(login_map))
 }
 
 #[derive(Parser, Debug)]
@@ -106,5 +135,5 @@ async fn rocket() -> _ {
     };
     rocket::build()
         .manage(shared_state)
-        .mount("/", routes![index, submit, receive_message])
+        .mount("/", routes![index_bool, submit, receive_message, chat])
 }

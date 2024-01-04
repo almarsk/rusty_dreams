@@ -63,11 +63,21 @@
             .form-group button:hover {
                 background-color: #45a049;
             }
+
+            #flash-error {
+                display: none; /* Hidden by default */
+                color: red;
+                text-align: center;
+                margin-top: 10px;
+            }
         </style>
     </head>
     <body>
         <div class="login-container">
             <h2>Login</h2>
+
+            <div class="flash-error" id="flash-error">wrong password</div>
+
             <form class="login-form" action="/submit" method="post">
                 <div class="form-group">
                     <label for="username">Username:</label>
@@ -88,5 +98,15 @@
                 <input type="hidden" name="form_type" value="login" />
             </form>
         </div>
+
+        <script>
+
+            document.addEventListener('DOMContentLoaded', function() {
+                var loginSuccess = {{ login_success }};
+                if (!loginSuccess) {
+                    document.getElementById('flash-error').style.display = 'block';
+                }
+            });
+        </script>
     </body>
 </html>
