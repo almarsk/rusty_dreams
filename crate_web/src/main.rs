@@ -1,141 +1,90 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+//use flume::Sender;
+
+use rocket::form::Form;
+use rocket::http::Status;
+use rocket::response::content::RawHtml;
+use rocket::response::Redirect;
+use rocket::response::{content, status};
+use rocket::State;
+mod handlebars;
+mod logger;
+use clap::Parser;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 
+use message::logging_in::LoginForm;
+mod auth;
+
+//use auth::login_backend::backend_login;
+mod args;
+mod connect_to_server;
+//use connect_to_server::connect_to_server;
+
 #[macro_use]
 extern crate rocket;
-use clap::Parser;
-use rocket::form::Form;
-use rocket::response::content::RawHtml;
-use rocket::response::{Flash, Redirect};
-use rocket::serde::json::Json;
-use rocket::serde::{Deserialize, Serialize};
-use rocket::uri;
-use rocket::State;
 
-use message::{send_message, Addressee, MaybeSerializedMessage::*};
-
-mod get_template;
-use get_template::get_template;
-mod connect_to_server;
-use connect_to_server::connect_to_server;
-mod login_backend;
-use login_backend::is_valid;
-
-#[derive(Serialize, Deserialize)]
-struct MessageFront {
-    message: String,
-    nick: String,
-}
-
-#[derive(FromForm)]
-pub struct LoginForm {
-    pub username: String,
-    pub password: String,
-}
-
-#[rocket::post("/submit", data = "<form>")]
-async fn submit(form: Form<LoginForm>, state: &State<SharedState>) -> Flash<Redirect> {
-    println!("pass {}", form.password);
-    println!("nick {}", form.username);
-    let username = form.username.clone();
-    //let is_valid = authenticate_user(&form.username, &form.password);
-
-    let freed_tcp_stream = &mut *state.tcp_stream.lock().await;
-    let (mut reader, mut writer) = tokio::io::split(freed_tcp_stream);
-    if is_valid(&mut reader, &mut writer, form.into_inner()).await {
-        Flash::success(Redirect::to(uri!(chat(username))), "Login succesful")
-    } else {
-        Flash::error(
-            Redirect::to(uri!(index_bool(Some(false)))),
-            "Invalid login credentials",
-        )
-    }
-}
-
-#[rocket::get("/chat_page/<username>")]
-fn chat(username: String) -> RawHtml<String> {
+#[get("/")]
+fn index() -> RawHtml<String> {
     let mut data = HashMap::new();
-    data.insert("nickname".to_string(), username);
-    get_template("chat", Some(data))
+    data.insert(String::from("invalid_login"), String::from("false"));
+    handlebars::get_template(String::from("login"), Some(data))
 }
 
-#[rocket::post("/receive_message", data = "<message>")]
-async fn receive_message(
-    state: &State<SharedState>,
-    message: Json<MessageFront>,
-) -> Json<MessageFront> {
-    let response_text = message.0.message;
-    let nick = message.0.nick;
-
-    let freed_tcp_stream = &mut *state.tcp_stream.lock().await;
-
-    let (_, mut writer) = tokio::io::split(freed_tcp_stream);
-    if send_message(
-        &mut writer,
-        ToSerialize(response_text.as_str(), nick.as_str()),
-        Addressee::Server,
-    )
-    .await
-    .is_err()
-    {
-        log::error!("failed sending the message");
-    };
-
-    Json(MessageFront {
-        message: response_text,
-        nick,
-    })
+#[get("/chat")]
+fn chat() -> RawHtml<String> {
+    let mut data = HashMap::new();
+    data.insert(String::from("nickname"), String::from("Blel"));
+    handlebars::get_template(String::from("chat"), Some(data))
 }
 
-#[rocket::get("/?<login>")]
-fn index_bool(login: Option<bool>) -> RawHtml<String> {
-    let mut login_map = HashMap::new();
-    login_map.insert(
-        "login_success".to_string(),
-        if let Some(false) = login {
-            "false".to_string()
-        } else {
-            "true".to_string()
-        },
-    );
-    get_template("login", Some(login_map))
+#[post("/login", data = "<form>")]
+async fn login(
+    //ws: ws::WebSocket,
+    form: Form<LoginForm>,
+    //_stream: &State<Stream>, // to communicate with db server
+    message_receivers: &State<Arc<Mutex<Vec<ws::WebSocket>>>>,
+) -> Redirect {
+    log::info!("login in");
+    log::info!("nick {} pass {}", form.nick, form.pass);
+    //  let user = backend_login(state, form).await;
+    //  log::info!("{:?}", user);
+    //message_receivers.lock().await.push(ws);
+    Redirect::to(uri!("/chat"))
 }
 
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    #[arg(long, default_value_t = String::from("127.0.0.1"))]
-    host: String,
-    #[arg(long, default_value_t = String::from("11111"))]
-    port: String,
+#[get("/register_listener")]
+async fn echo_stream(_ws: ws::WebSocket) -> status::Custom<content::RawHtml<&'static str>> {
+    log::info!("listener registered; todo send over to clients");
+
+    let response = content::RawHtml("<h1>WebSocket listener registered</h1>");
+    status::Custom(Status::Ok, response)
 }
 
-impl Args {
-    fn deconstruct(self) -> (String, String) {
-        (self.host, self.port)
-    }
-}
-
-struct SharedState {
-    tcp_stream: Arc<Mutex<TcpStream>>,
-}
+type Stream = Arc<Mutex<TcpStream>>;
 
 #[launch]
 async fn rocket() -> _ {
-    let (host, port) = Args::parse().deconstruct();
+    logger::build_logger();
+
+    let (_host, _port) = args::Args::parse().deconstruct();
+
+    /*
     let tcp_stream = if let Ok(tcp_stream) = connect_to_server(host, port).await {
         tcp_stream
     } else {
         log::error!("couldnt connect to server");
         std::process::exit(1);
     };
-    let shared_state = SharedState {
-        tcp_stream: Arc::new(Mutex::new(tcp_stream)),
-    };
+    let shared_stream = Arc::new(Mutex::new(tcp_stream));
+    */
+
+    let message_receivers: Arc<Mutex<Vec<ws::WebSocket>>> = Arc::new(Mutex::new(vec![]));
+
     rocket::build()
-        .manage(shared_state)
-        .mount("/", routes![index_bool, submit, receive_message, chat])
+        //.manage(shared_stream)
+        .manage(message_receivers)
+        .mount("/", routes![index, echo_stream, chat, login])
 }

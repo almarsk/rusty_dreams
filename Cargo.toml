@@ -1,8 +1,8 @@
 [workspace]
+resolver = "2"
 
 members = [
-    "crate_client",
-    "crate_server",
+    "crate_web",
     "crate_message",
-    "crate_web"
+    "crate_server"
 ]

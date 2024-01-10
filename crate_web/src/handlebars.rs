@@ -3,10 +3,7 @@ use rocket::response::content::RawHtml;
 use std::collections::HashMap;
 use std::fs;
 
-pub fn get_template(
-    template: &'static str,
-    data: Option<HashMap<String, String>>,
-) -> RawHtml<String> {
+pub fn get_template(template: String, data: Option<HashMap<String, String>>) -> RawHtml<String> {
     let template_content =
         match fs::read_to_string(format!("crate_web/templates/{}.html", template)) {
             Ok(content) => content,

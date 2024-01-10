@@ -1,25 +1,10 @@
-use env_logger::Builder;
 use tokio::net::TcpStream;
+
+use std::net::SocketAddr;
 
 use message::ChatError;
 
-use std::io::Write;
-use std::net::SocketAddr;
-
-pub async fn connect_to_server(host: String, port: String) -> Result<TcpStream, ChatError> {
-    // env_logger as backend for log here
-    Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-        .format(|buf, record| {
-            writeln!(
-                buf,
-                "{} {}",
-                chrono::Local::now().format("%H:%M:%S"),
-                record.args()
-            )
-        })
-        .init();
-    log::info!("yo les goo");
-
+pub async fn _connect_to_server(host: String, port: String) -> Result<TcpStream, ChatError> {
     let address: SocketAddr = if let Ok(a) = format!("{}:{}", host, port).parse() {
         a
     } else {
