@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" href="/style.css" />
+        <script src="/script.js" charset="utf-8" defer></script>
+        <title>Chat</title>
+        <style></style>
+    </head>
+    <body>
+        <div id="status" class="pending"></div>
+        <div class="chat-container">
+            <div class="nickname">{{ nickname }}</div>
+            <h2>rusty-chat</h2>
+            <div class="chat-messages" id="chatMessages">
+                <!-- Chat messages will appear here -->
+            </div>
+            <form class="chat-input" id="chat-input">
+                <input
+                    style="display: none"
+                    ;
+                    type="text"
+                    id="username"
+                    value="{{nickname}}"
+                />
+
+                <input
+                    type="text"
+                    id="messageInput"
+                    class="message-input"
+                    placeholder="Type your message..."
+                />
+                <button class="send-button">Send</button>
+            </form>
+        </div>
+
+        <script>
+            const nickname = "{{ nickname }}";
+        </script>
+    </body>
+</html>

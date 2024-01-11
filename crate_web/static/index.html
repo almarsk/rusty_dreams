@@ -73,7 +73,6 @@
         </style>
     </head>
     <body>
-        <div>{{ test }}</div>
         <div class="login-container">
             <h2>Login</h2>
 
@@ -96,9 +95,11 @@
         </div>
 
         <script>
-            document.addEventListener('DOMContentLoaded', function() {
-              if ({{ invalid_login }} ) {
-                    document.getElementById('flash-error').style.display = 'block';
+            document.addEventListener("DOMContentLoaded", function () {
+                if (false) {
+                    // todo
+                    document.getElementById("flash-error").style.display =
+                        "block";
                 }
             });
         </script>
