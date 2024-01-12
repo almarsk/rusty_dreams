@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 
 use message::ChatError;
 
-pub async fn _connect_to_server(host: String, port: String) -> Result<TcpStream, ChatError> {
+pub async fn connect_to_server(host: String, port: String) -> Result<TcpStream, ChatError> {
     let address: SocketAddr = if let Ok(a) = format!("{}:{}", host, port).parse() {
         a
     } else {

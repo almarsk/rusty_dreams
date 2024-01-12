@@ -95,9 +95,10 @@
         </div>
 
         <script>
+            let wrongPassword = {{ wrongPass }}
+
             document.addEventListener("DOMContentLoaded", function () {
-                if (false) {
-                    // todo
+                if (wrongPassword) {
                     document.getElementById("flash-error").style.display =
                         "block";
                 }

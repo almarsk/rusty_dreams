@@ -1,5 +1,5 @@
-mod user;
-pub use user::User;
+mod location;
+pub use location::{Location, User};
 mod error;
 pub mod logging_in;
 pub use error::ChatError;

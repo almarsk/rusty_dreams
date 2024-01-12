@@ -1,3 +1,5 @@
+#![allow(clippy::blocks_in_conditions)]
+
 use super::User;
 use rocket::serde::{Deserialize, Serialize};
 
@@ -11,6 +13,7 @@ pub struct LoginForm {
 pub enum LoginResult {
     #[default]
     WrongPassword,
+    InternalError,
     NewUser(User),
     ReturningUser(User),
 }
