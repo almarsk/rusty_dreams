@@ -4,12 +4,13 @@
 extern crate rocket;
 
 use std::collections::HashMap;
-use std::ops::DerefMut;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use clap::Parser;
 use rocket::form::Form;
 use rocket::fs::{relative, FileServer};
+use rocket::http::{Cookie, CookieJar, SameSite};
 use rocket::response::content::RawHtml;
 use rocket::response::stream::{Event, EventStream};
 use rocket::response::Redirect;
@@ -66,31 +67,45 @@ async fn events(queue: &State<Sender<Message>>, mut end: Shutdown) -> EventStrea
 }
 
 #[post("/login", data = "<form>")]
-async fn login(
-    form: Form<LoginForm>,
-    stream: &State<Stream>,
-    location: &State<Arc<Mutex<Location>>>,
-) -> Redirect {
-    log::info!("loging in");
+async fn login(form: Form<LoginForm>, stream: &State<Stream>, jar: &CookieJar<'_>) -> Redirect {
+    log::info!("logging in");
     let login_result = auth::login_backend::backend_login(stream, form).await;
-    let mut location = location.inner().lock().await;
+
+    jar.add(Cookie::build(("user_state", "LoggedIn")).same_site(SameSite::Strict));
 
     match login_result {
-        WrongPassword => *location = Location::WrongPassword,
-        InternalError => *location = Location::Login,
-        NewUser(user) | ReturningUser(user) => *location = Location::Chat(user),
+        WrongPassword => jar.add(
+            Cookie::build(("user_state", Location::WrongPassword.to_string()))
+                .same_site(SameSite::Strict),
+        ),
+        InternalError => jar.add(
+            Cookie::build(("user_state", Location::Login.to_string())).same_site(SameSite::Strict),
+        ),
+
+        NewUser(user) | ReturningUser(user) => jar.add(
+            Cookie::build(("user_state", Location::Chat(user).to_string()))
+                .same_site(SameSite::Strict),
+        ),
     }
 
     Redirect::to(uri!("/"))
 }
 
 #[get("/")]
-async fn dispatcher(location: &State<Arc<Mutex<Location>>>) -> RawHtml<String> {
-    let location = &mut location.inner().lock().await;
-    let location = location.deref_mut();
+async fn dispatcher(jar: &CookieJar<'_>) -> RawHtml<String> {
     let mut dat = HashMap::new();
 
-    match location {
+    let user_state = if let Ok(us) = Location::from_str(
+        jar.get("user_state")
+            .map(|cookie| cookie.value())
+            .unwrap_or("Login"),
+    ) {
+        us
+    } else {
+        Location::Login
+    };
+
+    match user_state {
         Location::Login => {
             log::info!("reading login html");
             dat.insert(String::from("wrongPass"), String::from("false"));
@@ -119,13 +134,11 @@ async fn rocket() -> _ {
         std::process::exit(1);
     };
 
-    let user = Arc::new(Mutex::new(Location::Login));
     let shared_stream = Arc::new(Mutex::new(tcp_stream));
 
     rocket::build()
         .manage(channel::<Message>(1024).0)
         .manage(shared_stream)
-        .manage(user)
         .mount("/", routes![post, events, login, dispatcher])
         .mount("/", FileServer::from(relative!("static")))
 }

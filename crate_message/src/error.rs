@@ -37,4 +37,6 @@ pub enum ChatError {
     EnvIssue,
     #[error("This type of message doesn't require a path check")]
     MessageTypePathIssue,
+    #[error("Cookie issue")]
+    CookieIssue,
 }
