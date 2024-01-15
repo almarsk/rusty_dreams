@@ -1880,10 +1880,12 @@ name = "server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode",
  "chrono",
  "clap",
  "dotenv",
  "env_logger",
+ "flume",
  "futures",
  "log",
  "message",
@@ -2797,6 +2799,7 @@ name = "web"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode",
  "chrono",
  "clap",
  "env_logger",

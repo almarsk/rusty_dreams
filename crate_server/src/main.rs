@@ -2,14 +2,19 @@ use anyhow::Result;
 use clap::Parser;
 use dotenv::dotenv;
 use env_logger::Builder;
-//use flume::{Receiver, Sender};
-//use flume::bounded;
+use flume::bounded;
+use flume::{Receiver, Sender};
 use sqlx::postgres::PgPoolOptions;
 use tokio::{net::TcpListener, sync::Mutex, try_join};
 
 use std::{io::Write, net::SocketAddr, sync::Arc};
 
-use message::ChatError;
+use message::{ChatError, Task};
+
+mod db;
+use db::database_task;
+mod web;
+use web::web_task;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -61,48 +66,27 @@ async fn main() -> Result<()> {
             .map_err(|e| anyhow::Error::new(e).context("Error connecting to database"))?,
     ));
 
-    {
-        let lock = &*pool.lock().await;
-
-        sqlx::query(
-            r#"
-   CREATE TABLE IF NOT EXISTS rusty_app_user (
-     id SERIAL PRIMARY KEY,
-     nick text,
-     pass text
-   );"#,
-        )
-        .execute(lock)
-        .await?;
-
-        sqlx::query(
-            r#"
-   CREATE TABLE IF NOT EXISTS rusty_app_message (
-     id SERIAL PRIMARY KEY,
-     message TEXT,
-     nick TEXT
-   );"#,
-        )
-        .execute(lock)
-        .await?;
-    }
+    //let lock = &*pool.lock().await;
 
     // server
     let listener = TcpListener::bind(address).await?;
-    let (_socket, _address) = listener
+    let (socket, _) = listener
         .accept()
         .await
         .map_err(|_| ChatError::AcceptanceIssue)?;
 
     log::info!("starting a new server");
 
-    let web_task = tokio::task::spawn(async { log::info!("web_task") });
+    let (tx_db, rx_db): (Sender<Task>, Receiver<Task>) = bounded(10);
+    let (tx_db_return, rx_db_return): (Sender<Task>, Receiver<Task>) = bounded(10);
+
+    let web_task = tokio::task::spawn(web_task(socket, tx_db, rx_db_return));
+    let db_task = tokio::task::spawn(database_task(rx_db, tx_db_return, pool));
 
     // not too happy with this
-    match try_join!(web_task) {
-        Ok(_) => {}
-        Err(e) => log::error!("It failed: {}", e),
-    }
+    if try_join!(web_task, db_task).is_err() {
+        log::error!("server problem")
+    };
 
     Ok(())
 }

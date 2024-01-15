@@ -8,13 +8,15 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use clap::Parser;
+use message::{get_buffer, Task};
 use rocket::form::Form;
 use rocket::fs::{relative, FileServer};
 use rocket::http::{Cookie, CookieJar, SameSite};
 use rocket::response::content::RawHtml;
 use rocket::response::stream::{Event, EventStream};
 use rocket::response::Redirect;
-use rocket::serde::{Deserialize, Serialize};
+//use rocket::serde::json::Json;
+//use rocket::serde::Serialize;
 use rocket::tokio::select;
 use rocket::tokio::sync::broadcast::{channel, error::RecvError, Sender};
 use rocket::{Shutdown, State};
@@ -25,25 +27,58 @@ mod logger;
 use message::logging_in::{LoginForm, LoginResult::*};
 mod connect_to_server;
 use connect_to_server::connect_to_server;
+use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 mod auth;
 
-use message::Location;
+use message::{send_message, HistoryDirection::*, Location, Message};
 
 type Stream = Arc<Mutex<TcpStream>>;
 
-#[derive(Debug, Clone, FromForm, Serialize, Deserialize)]
-#[serde(crate = "rocket::serde")]
-struct Message {
-    #[field(validate = len(..20))]
-    pub username: String,
-    pub message: String,
+#[get("/history")]
+async fn history(socket: &State<Stream>) -> String {
+    // send message to be written into database
+    let socket = &mut *socket.lock().await;
+    log::info!("lets go");
+    if send_message(socket, Task::History(Request)).await.is_err() {
+        log::error!("couldnt send message to db server")
+    };
+    log::info!("message sent");
+
+    if let Ok(mut buffer) = get_buffer(socket).await {
+        match socket.read(&mut buffer).await {
+            Ok(0) => String::from("aye"),
+            Ok(_) => {
+                if let Ok(task) = bincode::deserialize::<Task>(&buffer) {
+                    log::info!("{:?}", task);
+                    format!("{:?}", task)
+                } else {
+                    String::from("aye")
+                }
+            }
+            _ => String::from("aye"),
+        }
+    } else {
+        String::from("aye")
+    }
+
+    // wait for response and return it as a json
 }
 
 #[post("/message", data = "<form>")]
-fn post(form: Form<Message>, queue: &State<Sender<Message>>) {
+async fn post(form: Form<Message>, queue: &State<Sender<Message>>, writer: &State<Stream>) {
     log::info!("new message {}", form.clone().message);
+
+    // send message to be written into database
+    let writer = &mut *writer.lock().await;
+    if send_message(writer, Task::Message(form.clone()))
+        .await
+        .is_err()
+    {
+        log::error!("couldnt send message to db server")
+    };
+
     let _res = queue.send(form.into_inner());
 }
 
@@ -139,6 +174,6 @@ async fn rocket() -> _ {
     rocket::build()
         .manage(channel::<Message>(1024).0)
         .manage(shared_stream)
-        .mount("/", routes![post, events, login, dispatcher])
+        .mount("/", routes![post, events, login, dispatcher, history])
         .mount("/", FileServer::from(relative!("static")))
 }

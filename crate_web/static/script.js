@@ -14,8 +14,6 @@ function subscribe(uri) {
     const events = new EventSource(uri);
 
     events.addEventListener("message", (ev) => {
-      console.log("raw data", JSON.stringify(ev.data));
-      console.log("decoded data", JSON.stringify(JSON.parse(ev.data)));
       const msg = JSON.parse(ev.data);
       if (!("message" in msg)) return;
 
@@ -31,6 +29,8 @@ function subscribe(uri) {
     events.addEventListener("error", () => {
       events.close();
 
+      document.cookie = "user_state=;";
+
       let timeout = retryTime;
       retryTime = Math.min(64, retryTime * 2);
       console.log(`connection lost. attempting to reconnect in ${timeout}s`);
@@ -43,6 +43,15 @@ function subscribe(uri) {
 }
 
 function init() {
+  console.log("fetching history");
+  fetch("/history", {
+    method: "GET",
+  }).then((response) => {
+    response.text().then((text) => {
+      console.log(text);
+    });
+  });
+
   // Set up the form handler.
   newMessageForm.addEventListener("submit", (e) => {
     e.preventDefault();

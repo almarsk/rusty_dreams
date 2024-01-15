@@ -1,15 +1,8 @@
-receive message path -
-    send message to backend to put in database
-    put in database
+- return all history upon login - another endpoint
+- adding messsage to page doesnt have dynamic user yet
 
-check for valid user
-wrong password is a nono
-nonexistent user asks if there should be new user created
+- check validity of login
+- return wrongpassword, returning user and if new user do warn window saying a new user was created
 
-pass all messages to state when logging in succesfully
-
-add a dropdown menu with all users + a trashcan icon to delete them
-
-if deleted, it wont delete the messages
-    but mark the nickname as deleted
-        - adjust in db - new field
+- dropdown menu with users, it will be able to delete user and mark all of their messages as deleted
+- special messages

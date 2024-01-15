@@ -25,7 +25,7 @@ impl ToString for Location {
         match self {
             Location::Login => "Login".to_string(),
             Location::WrongPassword => "WrongPassword".to_string(),
-            Location::Chat(user) => format!("Chat{}", user.nick),
+            Location::Chat(user) => format!("Chat {}", user.nick),
         }
     }
 }
