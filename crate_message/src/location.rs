@@ -45,20 +45,5 @@ impl FromStr for Location {
             }
             _ => Err(ChatError::CookieIssue),
         }
-        /*
-                let (x, y) = s
-                    .strip_prefix('(')
-                    .and_then(|s| s.strip_suffix(')'))
-                    .and_then(|s| s.split_once(','))
-                    .ok_or(ParsePointError)?;
-
-                let x_fromstr = x.parse::<i32>().map_err(|_| ParsePointError)?;
-                let y_fromstr = y.parse::<i32>().map_err(|_| ParsePointError)?;
-
-                Ok(Location {
-                    x: x_fromstr,
-                    y: y_fromstr,
-                })
-        */
     }
 }

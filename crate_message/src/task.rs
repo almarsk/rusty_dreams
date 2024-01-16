@@ -14,5 +14,5 @@ pub enum Task {
 #[serde(crate = "rocket::serde")]
 pub enum HistoryDirection {
     Request,
-    Response,
+    Response(Vec<Message>),
 }
