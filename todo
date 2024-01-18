@@ -1,5 +1,4 @@
-- return all history upon login - another endpoint
-- adding messsage to page doesnt have dynamic user yet
+- debug history
 
 - check validity of login
 - return wrongpassword, returning user and if new user do warn window saying a new user was created

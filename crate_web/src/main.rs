@@ -15,6 +15,7 @@ use rocket::http::{Cookie, CookieJar, SameSite};
 use rocket::response::content::RawHtml;
 use rocket::response::stream::{Event, EventStream};
 use rocket::response::Redirect;
+use rocket::serde::json::Json;
 //use rocket::serde::json::Json;
 //use rocket::serde::Serialize;
 use rocket::tokio::select;
@@ -37,33 +38,34 @@ use message::{send_message, HistoryDirection::*, Location, Message};
 type Stream = Arc<Mutex<TcpStream>>;
 
 #[get("/history")]
-async fn history(socket: &State<Stream>) -> String {
+async fn history(socket: &State<Stream>) -> Json<Vec<Message>> {
     // send message to be written into database
+    log::info!("H I S T O R Y T I M E");
     let socket = &mut *socket.lock().await;
-    log::info!("lets go");
     if send_message(socket, Task::History(Request)).await.is_err() {
         log::error!("couldnt send message to db server")
     };
-    log::info!("message sent");
+    log::info!("message sent; waiting for response from db");
 
-    if let Ok(mut buffer) = get_buffer(socket).await {
+    let db_response = get_buffer(socket).await;
+
+    log::info!("db response arrived");
+
+    if let Ok(mut buffer) = db_response {
         match socket.read(&mut buffer).await {
-            Ok(0) => String::from("aye"),
+            Ok(0) => Json(vec![]),
             Ok(_) => {
-                if let Ok(task) = bincode::deserialize::<Task>(&buffer) {
-                    log::info!("{:?}", task);
-                    format!("{:?}", task)
+                if let Ok(Task::History(Response(h))) = bincode::deserialize::<Task>(&buffer) {
+                    Json(h)
                 } else {
-                    String::from("aye")
+                    Json(vec![])
                 }
             }
-            _ => String::from("aye"),
+            _ => Json(vec![]),
         }
     } else {
-        String::from("aye")
+        Json(vec![])
     }
-
-    // wait for response and return it as a json
 }
 
 #[post("/message", data = "<form>")]

@@ -17,7 +17,7 @@ function subscribe(uri) {
       const msg = JSON.parse(ev.data);
       if (!("message" in msg)) return;
 
-      addMessage(msg.message);
+      addMessage(msg.username, msg.message);
     });
 
     events.addEventListener("open", () => {
@@ -47,8 +47,11 @@ function init() {
   fetch("/history", {
     method: "GET",
   }).then((response) => {
-    response.text().then((text) => {
-      console.log(text);
+    response.json().then((data) => {
+      data.forEach((d) => {
+        console.log(`we got ${d.message} from ${d.username}`);
+        addMessage(d.username, d.message);
+      });
     });
   });
 
@@ -73,7 +76,7 @@ function init() {
   subscribe("/events");
 }
 
-function addMessage(messageText) {
+function addMessage(user, messageText) {
   var messageElement = document.createElement("div");
   messageElement.classList.add("message");
 
@@ -84,7 +87,7 @@ function addMessage(messageText) {
 
   var messageContent = document.createElement("span");
   messageContent.classList.add("message-content");
-  messageContent.textContent = nickname + ": " + messageText;
+  messageContent.textContent = user + ": " + messageText;
   messageElement.appendChild(messageContent);
 
   var chatMessages = document.getElementById("chatMessages");
