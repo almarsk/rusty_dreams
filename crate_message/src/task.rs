@@ -1,12 +1,15 @@
 use rocket::serde::{Deserialize, Serialize};
 
-use crate::Message;
+use crate::{
+    logging_in::{LoginAttempt, LoginResult},
+    Message,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub enum Task {
     Message(Message),
-    User,
+    User(LoginDirection),
     History(HistoryDirection),
 }
 
@@ -15,4 +18,11 @@ pub enum Task {
 pub enum HistoryDirection {
     Request,
     Response(Vec<Message>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+pub enum LoginDirection {
+    Request(LoginAttempt),
+    Response(LoginResult),
 }

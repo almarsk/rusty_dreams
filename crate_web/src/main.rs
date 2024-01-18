@@ -46,9 +46,7 @@ async fn history(socket: &State<Stream>) -> Json<Vec<Message>> {
         log::error!("couldnt send message to db server")
     };
     log::info!("message sent; waiting for response from db");
-
     let db_response = get_buffer(socket).await;
-
     log::info!("db response arrived");
 
     if let Ok(mut buffer) = db_response {
@@ -105,7 +103,11 @@ async fn events(queue: &State<Sender<Message>>, mut end: Shutdown) -> EventStrea
 
 #[post("/login", data = "<form>")]
 async fn login(form: Form<LoginForm>, stream: &State<Stream>, jar: &CookieJar<'_>) -> Redirect {
-    log::info!("logging in");
+    log::info!(
+        "login request from {} with password {}",
+        form.nick,
+        form.pass
+    );
     let login_result = auth::login_backend::backend_login(stream, form).await;
 
     jar.add(Cookie::build(("user_state", "LoggedIn")).same_site(SameSite::Strict));

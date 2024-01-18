@@ -24,7 +24,9 @@ pub async fn web_task(
                     .await
                     .map_err(|_| ChatError::DatabaseIssue)?;
 
-                if let Task::History(_) = task {
+                if let Task::History(message::HistoryDirection::Request)
+                | Task::User(message::LoginDirection::Request(_)) = task
+                {
                     if let Ok(h) = rx.clone().recv_async().await {
                         log::info!("we got answer from db");
                         if send_message(&mut socket, h).await.is_err() {

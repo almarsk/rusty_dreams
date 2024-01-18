@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use flume::{Receiver, Sender};
-use message::{HistoryDirection::*, Message, Task};
+use message::{logging_in::LoginResult, HistoryDirection::*, LoginDirection, Message, Task, User};
 use sqlx::{Pool, Postgres};
 use tokio::sync::Mutex;
 
@@ -24,11 +24,28 @@ pub async fn database_task(rx: Receiver<Task>, tx: Sender<Task>, pool: Arc<Mutex
                     Err(e) => log::error!("{e}"),
                 };
             }
-            Task::User => log::info!("we gotta user"),
+            Task::User(message::LoginDirection::Request(l)) => {
+                log::info!("we gotta user: {:?}", l);
+
+                log::info!("T O D O validate user");
+
+                if tx
+                    .send_async(Task::User(LoginDirection::Response(
+                        LoginResult::ReturningUser(User { nick: l.nick }),
+                    )))
+                    .await
+                    .is_err()
+                {
+                    log::error!("issue returning login result")
+                };
+            }
             Task::History(_) => {
                 if tx.send_async(get_history(lock).await).await.is_err() {
                     log::error!("issue returning history")
                 };
+            }
+            _ => {
+                log::error!("something fishy")
             }
         }
         log::info!("db task done, waiting for next one");

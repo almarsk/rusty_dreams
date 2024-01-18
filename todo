@@ -1,5 +1,3 @@
-- debug history
-
 - check validity of login
 - return wrongpassword, returning user and if new user do warn window saying a new user was created
 

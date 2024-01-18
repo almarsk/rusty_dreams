@@ -7,7 +7,7 @@ use std::str::FromStr;
 ///         the correctness of password
 use rocket::serde::{Deserialize, Serialize};
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct User {
     pub nick: String,
 }

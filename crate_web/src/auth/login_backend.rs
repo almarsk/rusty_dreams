@@ -2,14 +2,29 @@ use rocket::{form::Form, State};
 
 use crate::Stream;
 
-use super::{receive_login_result::receive_login_result, send_login_attempt::send_login_attempt};
-use message::logging_in::{LoginAttempt, LoginForm, LoginResult};
+use super::receive_login_result::receive_login_result;
+use message::{
+    logging_in::{LoginAttempt, LoginForm, LoginResult},
+    send_message,
+    LoginDirection::*,
+    Task,
+};
 
 pub async fn backend_login(stream: &State<Stream>, form: Form<LoginForm>) -> LoginResult {
     let freed_tcp_stream = &mut *stream.lock().await;
 
-    let (mut reader, mut writer) = tokio::io::split(freed_tcp_stream);
+    if send_message(
+        freed_tcp_stream,
+        Task::User(Request(LoginAttempt {
+            nick: form.nick.clone(),
+            pass: form.pass.clone(),
+        })),
+    )
+    .await
+    .is_err()
+    {
+        log::error!("couldnt send message to db server")
+    }
 
-    send_login_attempt(&mut writer, LoginAttempt::from(form.into_inner()));
-    receive_login_result(&mut reader)
+    receive_login_result(freed_tcp_stream).await
 }

@@ -9,7 +9,7 @@ pub struct LoginForm {
     pub pass: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub enum LoginResult {
     #[default]
     WrongPassword,
@@ -18,10 +18,10 @@ pub enum LoginResult {
     ReturningUser(User),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LoginAttempt {
-    nick: String,
-    pass: String,
+    pub nick: String,
+    pub pass: String,
 }
 
 impl From<LoginForm> for LoginAttempt {

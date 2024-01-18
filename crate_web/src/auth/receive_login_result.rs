@@ -1,11 +1,28 @@
-use message::{logging_in::LoginResult, User};
-use tokio::io::{AsyncRead, AsyncReadExt, ReadHalf};
+use message::{get_buffer, logging_in::LoginResult, LoginDirection, Task};
+use tokio::io::AsyncReadExt;
+use tokio::net::TcpStream;
 
-pub fn receive_login_result<T>(_reader: &mut ReadHalf<T>) -> LoginResult
+pub async fn receive_login_result(socket: &mut TcpStream) -> LoginResult
 where
-    T: AsyncRead + AsyncReadExt,
 {
-    LoginResult::ReturningUser(User {
-        nick: String::from("plonk"),
-    })
+    let db_response = get_buffer(socket).await;
+    log::info!("db response arrived");
+
+    if let Ok(mut buffer) = db_response {
+        match socket.read(&mut buffer).await {
+            Ok(0) => LoginResult::InternalError,
+            Ok(_) => {
+                if let Ok(Task::User(LoginDirection::Response(login_result))) =
+                    bincode::deserialize::<Task>(&buffer)
+                {
+                    login_result
+                } else {
+                    LoginResult::InternalError
+                }
+            }
+            _ => LoginResult::InternalError,
+        }
+    } else {
+        LoginResult::InternalError
+    }
 }
