@@ -16,8 +16,6 @@ use rocket::response::content::RawHtml;
 use rocket::response::stream::{Event, EventStream};
 use rocket::response::Redirect;
 use rocket::serde::json::Json;
-//use rocket::serde::json::Json;
-//use rocket::serde::Serialize;
 use rocket::tokio::select;
 use rocket::tokio::sync::broadcast::{channel, error::RecvError, Sender};
 use rocket::{Shutdown, State};
@@ -112,6 +110,8 @@ async fn login(form: Form<LoginForm>, stream: &State<Stream>, jar: &CookieJar<'_
 
     jar.add(Cookie::build(("user_state", "LoggedIn")).same_site(SameSite::Strict));
 
+    log::info!("{:?}", login_result);
+
     match login_result {
         WrongPassword => jar.add(
             Cookie::build(("user_state", Location::WrongPassword.to_string()))
@@ -121,7 +121,14 @@ async fn login(form: Form<LoginForm>, stream: &State<Stream>, jar: &CookieJar<'_
             Cookie::build(("user_state", Location::Login.to_string())).same_site(SameSite::Strict),
         ),
 
-        NewUser(user) | ReturningUser(user) => jar.add(
+        NewUser(user) => {
+            jar.add(
+                Cookie::build(("user_state", Location::Chat(user).to_string()))
+                    .same_site(SameSite::Strict),
+            );
+            jar.add(Cookie::build(("new_user", "true")).same_site(SameSite::Strict))
+        }
+        ReturningUser(user) => jar.add(
             Cookie::build(("user_state", Location::Chat(user).to_string()))
                 .same_site(SameSite::Strict),
         ),

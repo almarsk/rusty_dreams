@@ -24,6 +24,12 @@ pub struct LoginAttempt {
     pub pass: String,
 }
 
+impl LoginAttempt {
+    pub fn dec(self) -> (String, String) {
+        (self.nick, self.pass)
+    }
+}
+
 impl From<LoginForm> for LoginAttempt {
     fn from(form: LoginForm) -> Self {
         LoginAttempt {

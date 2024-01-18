@@ -1,5 +1,4 @@
 let newMessageForm = document.getElementById("chat-input");
-let statusDiv = document.getElementById("status");
 let messageField = newMessageForm.querySelector("#messageInput");
 let usernameField = newMessageForm.querySelector("#username");
 
@@ -43,13 +42,16 @@ function subscribe(uri) {
 }
 
 function init() {
-  console.log("fetching history");
+  if (getCookieValue(document.cookie, "new_user")) {
+    alert(`new user created: ${usernameField.value}`);
+  }
+
   fetch("/history", {
     method: "GET",
   }).then((response) => {
     response.json().then((data) => {
       data.forEach((d) => {
-        console.log(`we got ${d.message} from ${d.username}`);
+        //console.log(`we got ${d.message} from ${d.username}`);
         addMessage(d.username, d.message);
       });
     });
@@ -103,7 +105,26 @@ function getCurrentTime() {
 
 function setConnectedStatus(status) {
   STATE.connected = status;
-  statusDiv.className = status ? "connected" : "reconnecting";
+}
+
+function getCookieValue(cookieString, cookieName) {
+  console.log(cookieString);
+  const cookies = cookieString.split("; ");
+
+  for (const cookie of cookies) {
+    const [name, value] = cookie.split("=");
+    if (name === cookieName) {
+      return value === "true"; // Parse the value as a boolean
+    }
+  }
+
+  return false;
+}
+
+function logOff() {
+  setConnectedStatus(false);
+  document.cookie = "";
+  window.location.href = "";
 }
 
 init();

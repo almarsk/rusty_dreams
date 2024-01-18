@@ -1,4 +1,3 @@
-- check validity of login
 - return wrongpassword, returning user and if new user do warn window saying a new user was created
 
 - dropdown menu with users, it will be able to delete user and mark all of their messages as deleted

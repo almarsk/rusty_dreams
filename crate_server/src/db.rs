@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
 use flume::{Receiver, Sender};
-use message::{logging_in::LoginResult, HistoryDirection::*, LoginDirection, Message, Task, User};
+use message::{HistoryDirection::*, LoginDirection, Message, Task};
 use sqlx::{Pool, Postgres};
 use tokio::sync::Mutex;
+
+use super::auth::check_login;
 
 pub async fn database_task(rx: Receiver<Task>, tx: Sender<Task>, pool: Arc<Mutex<Pool<Postgres>>>) {
     let lock = &*pool.lock().await;
@@ -24,14 +26,14 @@ pub async fn database_task(rx: Receiver<Task>, tx: Sender<Task>, pool: Arc<Mutex
                     Err(e) => log::error!("{e}"),
                 };
             }
-            Task::User(message::LoginDirection::Request(l)) => {
-                log::info!("we gotta user: {:?}", l);
+            Task::User(message::LoginDirection::Request(login_attempt)) => {
+                log::info!("we gotta user: {:?}", login_attempt);
 
                 log::info!("T O D O validate user");
 
                 if tx
                     .send_async(Task::User(LoginDirection::Response(
-                        LoginResult::ReturningUser(User { nick: l.nick }),
+                        check_login(login_attempt, lock).await,
                     )))
                     .await
                     .is_err()

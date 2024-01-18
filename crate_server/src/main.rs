@@ -15,6 +15,7 @@ mod db;
 use db::database_task;
 mod web;
 use web::web_task;
+mod auth;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
