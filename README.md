@@ -13,8 +13,8 @@ How to run it:
 0) setting up the database\
     start a .env file with a valid url to a postgres database\
     in postgres shell start up two tables\
-            rusty_app_user\
-            rusty_app_message
+            rusty_app_user (id, nick, pass)\
+            rusty_app_message (id, nick, message)
 
 1) Clone the repo; cd into it
 2) In a terminal window run `cargo run --bin server --port <port>`
