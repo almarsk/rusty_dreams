@@ -17,11 +17,11 @@ How to run it:
             rusty_app_message
 
 1) Clone the repo; cd into it
-2) In a terminal window run `cargo run --bin server`
-3) In another terminal window run `cargo run --bin client`
-4) Repeat step 3)
-5) Congrats, you have a running chatting app between two clients
+2) In a terminal window run `cargo run --bin server --port <port>`
+3) In another terminal window run `cargo run --bin web --port <the same port>`
+5) Congrats, you have a running chatting app which you can access locally from browser
 
+**To be finished**
 Features:
 
 You can choose host and port as you start up both server and client, specify by --host and --port flags\
