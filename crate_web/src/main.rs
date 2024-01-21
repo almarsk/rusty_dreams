@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use clap::Parser;
 use message::{get_buffer, Task};
+use once_cell::sync::Lazy;
 use rocket::form::Form;
 use rocket::fs::{relative, FileServer};
 use rocket::http::{Cookie, CookieJar, SameSite};
@@ -19,6 +20,10 @@ use rocket::serde::json::Json;
 use rocket::tokio::select;
 use rocket::tokio::sync::broadcast::{channel, error::RecvError, Sender};
 use rocket::{Shutdown, State};
+use rocket_prometheus::{
+    prometheus::{opts, IntCounterVec},
+    PrometheusMetrics,
+};
 
 mod args;
 mod handlebars;
@@ -34,6 +39,11 @@ mod auth;
 use message::{send_message, HistoryDirection::*, Location, Message};
 
 type Stream = Arc<Mutex<TcpStream>>;
+
+static MESSAGE_COUNTER: Lazy<IntCounterVec> = Lazy::new(|| {
+    IntCounterVec::new(opts!("message_counter", "Count of messages"), &["message"])
+        .expect("Could not create NAME_COUNTER")
+});
 
 #[get("/history")]
 async fn history(socket: &State<Stream>) -> Json<Vec<Message>> {
@@ -76,7 +86,7 @@ async fn post(form: Form<Message>, queue: &State<Sender<Message>>, writer: &Stat
     {
         log::error!("couldnt send message to db server")
     };
-
+    MESSAGE_COUNTER.with_label_values(&["message"]).inc();
     let _res = queue.send(form.into_inner());
 }
 
@@ -173,6 +183,12 @@ async fn rocket() -> _ {
     logger::build_logger();
     let (host, port) = args::Args::parse().deconstruct();
 
+    let prometheus = PrometheusMetrics::new();
+    prometheus
+        .registry()
+        .register(Box::new(MESSAGE_COUNTER.clone()))
+        .unwrap();
+
     let tcp_stream = if let Ok(tcp_stream) = connect_to_server(host, port).await {
         tcp_stream
     } else {
@@ -185,6 +201,8 @@ async fn rocket() -> _ {
     rocket::build()
         .manage(channel::<Message>(1024).0)
         .manage(shared_stream)
+        .attach(prometheus.clone())
+        .mount("/metrics", prometheus)
         .mount("/", routes![post, events, login, dispatcher, history])
         .mount("/", FileServer::from(relative!("static")))
 }
