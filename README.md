@@ -21,18 +21,13 @@ How to run it:
 3) In another terminal window run `cargo run --bin web --port <the same port>`
 5) Congrats, you have a running chatting app which you can access locally from browser
 
-**To be finished**
 Features:
 
 You can choose host and port as you start up both server and client, specify by --host and --port flags\
 If you don't, it defaults to localhost:11111 - ONLY TESTED LOCALLY\
-Clients get a generated nicknames unless specified otherwise by the -u flag\
-You can add as many clients as you want
 
+**To be finished**\
 In the chatting mode you can send plain text by just typing\
 You can send png images by typing .image and a valid path\
 You can send files by typing .file and a valid path\
 Both files and images will save in the folder media/current username of the addresee\
-You can end the convo by typing .quit
-
-Have fun!
