@@ -8,7 +8,7 @@ pub use send_message::send_message;
 pub mod message;
 mod task;
 pub use message::Message;
-pub use task::{HistoryDirection, LoginDirection, Task};
+pub use task::{LoginDirection, Task, TaskDirection};
 mod buffer;
 pub use buffer::get_buffer;
 

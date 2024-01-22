@@ -1,6 +1,7 @@
 let newMessageForm = document.getElementById("chat-input");
 let messageField = newMessageForm.querySelector("#messageInput");
 let usernameField = newMessageForm.querySelector("#username");
+let dropdown = document.getElementById("userDropdown");
 
 var STATE = {
   connected: false,
@@ -46,6 +47,7 @@ function init() {
     alert(`new user created: ${usernameField.value}`);
   }
 
+  // this will be extracted into a function, so it can be updated with deleted users
   fetch("/history", {
     method: "GET",
   }).then((response) => {
@@ -54,6 +56,22 @@ function init() {
         //console.log(`we got ${d.message} from ${d.username}`);
         addMessage(d.username, d.message);
       });
+    });
+  });
+
+  // this will be extracted into a function, so it can be updated with deleted users
+  fetch("/mannschaft", {
+    method: "GET",
+  }).then((response) => {
+    response.json().then((data) => {
+      data
+        .filter((d) => d != "")
+        .forEach((d, i) => {
+          var option = document.createElement("option");
+          option.value = "option" + (i + 1);
+          option.text = d;
+          dropdown.add(option);
+        });
     });
   });
 

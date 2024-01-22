@@ -10,14 +10,15 @@ use crate::{
 pub enum Task {
     Message(Message),
     User(LoginDirection),
-    History(HistoryDirection),
+    History(TaskDirection<Message>),
+    Mannschaft(TaskDirection<String>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
-pub enum HistoryDirection {
+pub enum TaskDirection<T> {
     Request,
-    Response(Vec<Message>),
+    Response(Vec<T>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use flume::{Receiver, Sender};
-use message::{HistoryDirection::*, LoginDirection, Message, Task};
+use message::{LoginDirection, Message, Task, TaskDirection::*};
 use sqlx::{Pool, Postgres};
 use tokio::sync::Mutex;
 
@@ -46,6 +46,11 @@ pub async fn database_task(rx: Receiver<Task>, tx: Sender<Task>, pool: Arc<Mutex
                     log::error!("issue returning history")
                 };
             }
+            Task::Mannschaft(_) => {
+                if tx.send_async(get_mannschaft(lock).await).await.is_err() {
+                    log::error!("issue returning history")
+                };
+            }
             _ => {
                 log::error!("something fishy")
             }
@@ -66,8 +71,24 @@ async fn get_history(lock: &Pool<Postgres>) -> Task {
                 .map(|r| Message {
                     username: r.nick.unwrap_or("user".to_string()),
                     message: r.message.unwrap_or("...".to_string()),
+                    // deleted
                 })
                 .collect::<Vec<Message>>(),
+        )),
+    }
+}
+
+async fn get_mannschaft(lock: &Pool<Postgres>) -> Task {
+    match sqlx::query!("SELECT * FROM rusty_app_user")
+        .fetch_all(lock)
+        .await
+    {
+        Err(_) => Task::Mannschaft(Response(vec![])),
+        Ok(records) => Task::Mannschaft(Response(
+            records
+                .into_iter()
+                .map(|r| r.nick.unwrap_or_default())
+                .collect::<Vec<String>>(),
         )),
     }
 }

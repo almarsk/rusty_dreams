@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use tokio::{io::AsyncReadExt, net::TcpStream};
 
-use message::{get_buffer, send_message, ChatError, Task};
+use message::{get_buffer, send_message, ChatError, Task, TaskDirection};
 
 pub async fn web_task(
     mut socket: TcpStream,
@@ -24,8 +24,9 @@ pub async fn web_task(
                     .await
                     .map_err(|_| ChatError::DatabaseIssue)?;
 
-                if let Task::History(message::HistoryDirection::Request)
-                | Task::User(message::LoginDirection::Request(_)) = task
+                if let Task::History(TaskDirection::Request)
+                | Task::User(message::LoginDirection::Request(_))
+                | Task::Mannschaft(TaskDirection::Request) = task
                 {
                     if let Ok(h) = rx.clone().recv_async().await {
                         log::info!("we got answer from db");

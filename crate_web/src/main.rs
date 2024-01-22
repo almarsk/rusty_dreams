@@ -36,7 +36,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 mod auth;
 
-use message::{send_message, HistoryDirection::*, Location, Message};
+use message::{send_message, Location, Message, TaskDirection::*};
 
 type Stream = Arc<Mutex<TcpStream>>;
 
@@ -63,6 +63,37 @@ async fn history(socket: &State<Stream>) -> Json<Vec<Message>> {
             Ok(_) => {
                 if let Ok(Task::History(Response(h))) = bincode::deserialize::<Task>(&buffer) {
                     Json(h)
+                } else {
+                    Json(vec![])
+                }
+            }
+            _ => Json(vec![]),
+        }
+    } else {
+        Json(vec![])
+    }
+}
+
+#[get("/mannschaft")]
+async fn mannschaft(socket: &State<Stream>) -> Json<Vec<String>> {
+    // send message to be written into database
+    let socket = &mut *socket.lock().await;
+    if send_message(socket, Task::Mannschaft(Request))
+        .await
+        .is_err()
+    {
+        log::error!("couldnt send message to db server")
+    };
+    log::info!("message sent; waiting for response from db");
+    let db_response = get_buffer(socket).await;
+    log::info!("db response arrived");
+
+    if let Ok(mut buffer) = db_response {
+        match socket.read(&mut buffer).await {
+            Ok(0) => Json(vec![]),
+            Ok(_) => {
+                if let Ok(Task::Mannschaft(Response(m))) = bincode::deserialize::<Task>(&buffer) {
+                    Json(m)
                 } else {
                     Json(vec![])
                 }
@@ -132,6 +163,8 @@ async fn login(form: Form<LoginForm>, stream: &State<Stream>, jar: &CookieJar<'_
         ),
 
         NewUser(user) => {
+            // push to users event stream
+            //
             jar.add(
                 Cookie::build(("user_state", Location::Chat(user).to_string()))
                     .same_site(SameSite::Strict),
@@ -195,7 +228,6 @@ async fn rocket() -> _ {
         log::error!("couldnt connect to server");
         std::process::exit(1);
     };
-
     let shared_stream = Arc::new(Mutex::new(tcp_stream));
 
     rocket::build()
@@ -203,6 +235,9 @@ async fn rocket() -> _ {
         .manage(shared_stream)
         .attach(prometheus.clone())
         .mount("/metrics", prometheus)
-        .mount("/", routes![post, events, login, dispatcher, history])
+        .mount(
+            "/",
+            routes![post, events, login, dispatcher, history, mannschaft],
+        )
         .mount("/", FileServer::from(relative!("static")))
 }

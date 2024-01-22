@@ -6,9 +6,36 @@
         <link rel="stylesheet" href="/style.css" />
         <script src="/script.js" charset="utf-8" defer></script>
         <title>Chat</title>
-        <style></style>
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+            }
+
+            .chat-container {
+                text-align: left;
+            }
+
+            .user-dropdown {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+            }
+        </style>
     </head>
     <body>
+        <form class="user-dropdown">
+            <label for="userDropdown">select user to delete:</label>
+            <select id="userDropdown">
+                <!-- Populate this dropdown dynamically with user options -->
+            </select>
+            <button>delete</button>
+        </form>
+
         <div class="chat-container">
             <div class="nickname">{{ nickname }}</div>
             <h2>rusty-chat</h2>
@@ -18,12 +45,10 @@
             <form class="chat-input" id="chat-input">
                 <input
                     style="display: none"
-                    ;
                     type="text"
                     id="username"
-                    value="{{nickname}}"
+                    value="{{ nickname }}"
                 />
-
                 <input
                     type="text"
                     id="messageInput"
@@ -36,6 +61,33 @@
 
         <script>
             const nickname = "{{ nickname }}";
+
+            // Populate the dropdown with users
+
+            // Add a delete button for the selected user
+            userDropdown.addEventListener("change", () => {
+                const selectedUser = userDropdown.value;
+                const deleteButton = document.getElementById("deleteButton");
+
+                // Remove existing delete button
+                if (deleteButton) {
+                    deleteButton.parentNode.removeChild(deleteButton);
+                }
+
+                // Create a new delete button
+                const newDeleteButton = document.createElement("button");
+                newDeleteButton.id = "deleteButton";
+                newDeleteButton.textContent = "Delete User";
+                newDeleteButton.addEventListener("click", () => {
+                    // Implement the logic to delete the selected user
+                    alert(`Deleting user: ${selectedUser}`);
+                });
+
+                // Append the delete button to the form
+                document
+                    .getElementById("chat-input")
+                    .appendChild(newDeleteButton);
+            });
         </script>
     </body>
 </html>
