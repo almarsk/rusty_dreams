@@ -1,21 +1,15 @@
 - dropdown menu features:
-    - upon login starts listener for new users being added
     - if user is deleted, all their messages are marked as deleted in chat window
     (marks user as deleted in db and rewrites the messages)
+
+    DEBUG
+
     - if new user is created, he is added to the drop down menu
 
 TODO:
-when writing messages, add [deleted] if the user is deleted (extract into function: script.js 49)
-
-endpoints:
-
-broadcasting:
-/user (event stream will contain the information about adding/deletion)
-
-deleting user:
-/delete/?nick
 
 new user:
 /login pushes to new user queue
+/login wont allow a deleted user to log in
 
 - special messages

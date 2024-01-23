@@ -17,13 +17,19 @@ function subscribe(uri) {
 
     events.addEventListener("message", (ev) => {
       const msg = JSON.parse(ev.data);
-      //console.log(ev);
+
       if (
         Object.prototype.toString.call(msg) === "[object Object]" &&
         "Message" in msg
       ) {
+        console.log(msg);
         if (!("message" in msg.Message)) return;
-        addMessage(msg.Message.username, msg.Message.message);
+        addMessage(
+          msg.Message.username,
+          msg.Message.message,
+          msg.Message.date,
+          msg.Message.deleted,
+        );
         // scroll down upon message
       } else {
         console.log("user deleted, lets go");
@@ -73,7 +79,11 @@ function init() {
     if (STATE.connected) {
       fetch("/message", {
         method: "POST",
-        body: new URLSearchParams({ username, message }),
+        body: new URLSearchParams({
+          username,
+          message,
+          date: getCurrentTime(),
+        }),
       }).then((response) => {
         if (response.ok) messageField.value = "";
         //console.log(mess_window.scrollTop);
@@ -106,13 +116,14 @@ function init() {
   subscribe("/events");
 }
 
-function addMessage(user, messageText) {
+function addMessage(user, messageText, date, deleted) {
   var messageElement = document.createElement("div");
   messageElement.classList.add("message");
 
   var messageTime = document.createElement("span");
   messageTime.classList.add("message-time");
-  messageTime.textContent = getCurrentTime();
+  console.log(user, messageText, date, "deleted: " + deleted);
+  messageTime.textContent = date;
   messageElement.appendChild(messageTime);
 
   var messageContent = document.createElement("span");
@@ -167,21 +178,22 @@ function logOff() {
 }
 
 function getHistory() {
-  // this will be extracted into a function, so it can be updated with deleted users
+  var chatMessages = document.getElementById("chatMessages");
+  chatMessages.innerHTML = "";
   fetch("/history", {
     method: "GET",
   }).then((response) => {
     response.json().then((data) => {
       data.forEach((d) => {
         //console.log(`we got ${d.message} from ${d.username}`);
-        addMessage(d.username, d.message);
+        addMessage(d.username, d.message, d.date, d.deleted);
       });
     });
   });
 }
 
 function getMannschaft() {
-  // this will be extracted into a function, so it can be updated with deleted users
+  dropdown.innerHTML = "";
   fetch("/mannschaft", {
     method: "GET",
   }).then((response) => {

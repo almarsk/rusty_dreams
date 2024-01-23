@@ -7,4 +7,6 @@ pub struct Message {
     #[field(validate = len(..20))]
     pub username: String,
     pub message: String,
+    pub deleted: bool,
+    pub date: String,
 }

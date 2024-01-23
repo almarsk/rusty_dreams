@@ -11,16 +11,19 @@ pub async fn database_task(rx: Receiver<Task>, tx: Sender<Task>, pool: Arc<Mutex
     let lock = &*pool.lock().await;
 
     while let Ok(task) = rx.recv_async().await {
-        log::info!("task arrived to db");
+        log::info!("task arrived to db {:?}", task);
 
         match task {
             Task::Message(m) => {
                 log::info!("into db message from {}", m.username);
-                match sqlx::query("INSERT INTO rusty_app_message (message, nick) VALUES ($1, $2)")
-                    .bind(m.message)
-                    .bind(m.username)
-                    .execute(lock)
-                    .await
+                match sqlx::query(
+                    "INSERT INTO rusty_app_message (message, nick, date) VALUES ($1, $2, $3)",
+                )
+                .bind(m.message)
+                .bind(m.username)
+                .bind(m.date)
+                .execute(lock)
+                .await
                 {
                     Ok(_) => log::info!("message inserted"),
                     Err(e) => log::error!("{e}"),
@@ -61,6 +64,23 @@ pub async fn database_task(rx: Receiver<Task>, tx: Sender<Task>, pool: Arc<Mutex
 }
 
 async fn get_history(lock: &Pool<Postgres>) -> Task {
+    let deleted_users: Vec<_> = match sqlx::query!("SELECT * FROM rusty_app_user")
+        .fetch_all(lock)
+        .await
+    {
+        Err(_) => return Task::History(Response(vec![])),
+        Ok(records) => records
+            .into_iter()
+            .filter_map(|r| {
+                if r.deleted.unwrap_or_default() {
+                    r.nick
+                } else {
+                    None
+                }
+            })
+            .collect(),
+    };
+
     match sqlx::query!("SELECT * FROM rusty_app_message")
         .fetch_all(lock)
         .await
@@ -69,10 +89,15 @@ async fn get_history(lock: &Pool<Postgres>) -> Task {
         Ok(records) => Task::History(Response(
             records
                 .into_iter()
-                .map(|r| Message {
-                    username: r.nick.unwrap_or("user".to_string()),
-                    message: r.message.unwrap_or("...".to_string()),
-                    // deleted
+                .map(|r| {
+                    let username = r.nick.unwrap_or("user".to_string());
+
+                    Message {
+                        deleted: deleted_users.contains(&username),
+                        username,
+                        message: r.message.unwrap_or("...".to_string()),
+                        date: r.date.unwrap_or("?????".to_string()),
+                    }
                 })
                 .collect::<Vec<Message>>(),
         )),
@@ -95,6 +120,7 @@ async fn get_mannschaft(lock: &Pool<Postgres>) -> Task {
 }
 
 async fn delete_user(lock: &Pool<Postgres>, user: String) {
+    log::info!("lets delete {}", user);
     match sqlx::query!(
         "UPDATE rusty_app_user
     SET deleted = true
