@@ -51,6 +51,7 @@ pub async fn database_task(rx: Receiver<Task>, tx: Sender<Task>, pool: Arc<Mutex
                     log::error!("issue returning history")
                 };
             }
+            Task::Delete(user) => delete_user(lock, user).await,
             _ => {
                 log::error!("something fishy")
             }
@@ -90,5 +91,20 @@ async fn get_mannschaft(lock: &Pool<Postgres>) -> Task {
                 .map(|r| r.nick.unwrap_or_default())
                 .collect::<Vec<String>>(),
         )),
+    }
+}
+
+async fn delete_user(lock: &Pool<Postgres>, user: String) {
+    match sqlx::query!(
+        "UPDATE rusty_app_user
+    SET deleted = true
+    WHERE nick = $1",
+        user
+    )
+    .fetch_all(lock)
+    .await
+    {
+        Err(_) => log::error!("couldnt delete user {}", user),
+        Ok(_) => log::info!("user {} deleted", user),
     }
 }

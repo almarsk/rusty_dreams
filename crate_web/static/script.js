@@ -2,6 +2,8 @@ let newMessageForm = document.getElementById("chat-input");
 let messageField = newMessageForm.querySelector("#messageInput");
 let usernameField = newMessageForm.querySelector("#username");
 let dropdown = document.getElementById("userDropdown");
+let deleteUser = document.getElementById("userDeletion");
+let mess_window = document.getElementById("chatMessages");
 
 var STATE = {
   connected: false,
@@ -15,9 +17,19 @@ function subscribe(uri) {
 
     events.addEventListener("message", (ev) => {
       const msg = JSON.parse(ev.data);
-      if (!("message" in msg)) return;
-
-      addMessage(msg.username, msg.message);
+      //console.log(ev);
+      if (
+        Object.prototype.toString.call(msg) === "[object Object]" &&
+        "Message" in msg
+      ) {
+        if (!("message" in msg.Message)) return;
+        addMessage(msg.Message.username, msg.Message.message);
+        // scroll down upon message
+      } else {
+        console.log("user deleted, lets go");
+        getHistory();
+        getMannschaft();
+      }
     });
 
     events.addEventListener("open", () => {
@@ -47,33 +59,8 @@ function init() {
     alert(`new user created: ${usernameField.value}`);
   }
 
-  // this will be extracted into a function, so it can be updated with deleted users
-  fetch("/history", {
-    method: "GET",
-  }).then((response) => {
-    response.json().then((data) => {
-      data.forEach((d) => {
-        //console.log(`we got ${d.message} from ${d.username}`);
-        addMessage(d.username, d.message);
-      });
-    });
-  });
-
-  // this will be extracted into a function, so it can be updated with deleted users
-  fetch("/mannschaft", {
-    method: "GET",
-  }).then((response) => {
-    response.json().then((data) => {
-      data
-        .filter((d) => d != "")
-        .forEach((d, i) => {
-          var option = document.createElement("option");
-          option.value = "option" + (i + 1);
-          option.text = d;
-          dropdown.add(option);
-        });
-    });
-  });
+  getHistory();
+  getMannschaft();
 
   // Set up the form handler.
   newMessageForm.addEventListener("submit", (e) => {
@@ -89,10 +76,33 @@ function init() {
         body: new URLSearchParams({ username, message }),
       }).then((response) => {
         if (response.ok) messageField.value = "";
+        //console.log(mess_window.scrollTop);
+        //console.log(mess_window.scrollHeight);
+        mess_window.scrollTop = mess_window.scrollHeight;
       });
     }
   });
 
+  deleteUser.addEventListener("submit", (e) => {
+    e.preventDefault(); // Prevent the default form submission behavior
+
+    //const formData = new FormData(deleteUser);
+    //const userValue = formData.get("user");
+
+    fetch(`/delete?user=${dropdown.options[dropdown.selectedIndex].text}`, {
+      method: "DELETE", // Use the DELETE method for deleting resources
+    })
+      .then((response) => {
+        if (response.ok) {
+          console.log("User deleted successfully");
+        } else {
+          console.error("Failed to delete user");
+        }
+      })
+      .catch((error) => {
+        console.error("Error during delete request:", error);
+      });
+  });
   subscribe("/events");
 }
 
@@ -156,4 +166,40 @@ function logOff() {
   window.location.reload();
 }
 
+function getHistory() {
+  // this will be extracted into a function, so it can be updated with deleted users
+  fetch("/history", {
+    method: "GET",
+  }).then((response) => {
+    response.json().then((data) => {
+      data.forEach((d) => {
+        //console.log(`we got ${d.message} from ${d.username}`);
+        addMessage(d.username, d.message);
+      });
+    });
+  });
+}
+
+function getMannschaft() {
+  // this will be extracted into a function, so it can be updated with deleted users
+  fetch("/mannschaft", {
+    method: "GET",
+  }).then((response) => {
+    response.json().then((data) => {
+      data
+        .filter((d) => d != "")
+        .forEach((d, i) => {
+          var option = document.createElement("option");
+          option.value = "option" + (i + 1);
+          option.text = d;
+          dropdown.add(option);
+        });
+    });
+  });
+}
+
 init();
+
+setTimeout(() => {
+  mess_window.scrollTop = mess_window.scrollHeight;
+}, 30);

@@ -12,6 +12,7 @@ pub enum Task {
     User(LoginDirection),
     History(TaskDirection<Message>),
     Mannschaft(TaskDirection<String>),
+    Delete(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,4 +27,11 @@ pub enum TaskDirection<T> {
 pub enum LoginDirection {
     Request(LoginAttempt),
     Response(LoginResult),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+pub enum ServerTask {
+    Message(Message),
+    Deletion,
 }

@@ -36,7 +36,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 mod auth;
 
-use message::{send_message, Location, Message, TaskDirection::*};
+use message::{send_message, Location, Message, ServerTask, TaskDirection::*};
 
 type Stream = Arc<Mutex<TcpStream>>;
 
@@ -106,7 +106,7 @@ async fn mannschaft(socket: &State<Stream>) -> Json<Vec<String>> {
 }
 
 #[post("/message", data = "<form>")]
-async fn post(form: Form<Message>, queue: &State<Sender<Message>>, writer: &State<Stream>) {
+async fn post(form: Form<Message>, queue: &State<Sender<ServerTask>>, writer: &State<Stream>) {
     log::info!("new message {}", form.clone().message);
 
     // send message to be written into database
@@ -118,11 +118,24 @@ async fn post(form: Form<Message>, queue: &State<Sender<Message>>, writer: &Stat
         log::error!("couldnt send message to db server")
     };
     MESSAGE_COUNTER.with_label_values(&["message"]).inc();
-    let _res = queue.send(form.into_inner());
+    let _res = queue.send(ServerTask::Message(form.into_inner()));
+}
+
+#[delete("/delete?<user>")]
+async fn delete(user: String, queue: &State<Sender<ServerTask>>, writer: &State<Stream>) {
+    log::info!("deleting user {}", user);
+
+    // send message to be written into database
+    let writer = &mut *writer.lock().await;
+    if send_message(writer, Task::Delete(user)).await.is_err() {
+        log::error!("couldnt send message to db server")
+    };
+
+    let _res = queue.send(ServerTask::Deletion);
 }
 
 #[get("/events")]
-async fn events(queue: &State<Sender<Message>>, mut end: Shutdown) -> EventStream![] {
+async fn events(queue: &State<Sender<ServerTask>>, mut end: Shutdown) -> EventStream![] {
     let mut rx = queue.subscribe();
     EventStream! {
         loop {
@@ -231,13 +244,13 @@ async fn rocket() -> _ {
     let shared_stream = Arc::new(Mutex::new(tcp_stream));
 
     rocket::build()
-        .manage(channel::<Message>(1024).0)
+        .manage(channel::<ServerTask>(1024).0)
         .manage(shared_stream)
         .attach(prometheus.clone())
         .mount("/metrics", prometheus)
         .mount(
             "/",
-            routes![post, events, login, dispatcher, history, mannschaft],
+            routes![post, events, login, dispatcher, history, mannschaft, delete],
         )
         .mount("/", FileServer::from(relative!("static")))
 }
