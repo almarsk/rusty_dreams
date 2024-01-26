@@ -17,6 +17,7 @@ pub enum Location {
     #[default]
     Login,
     WrongPassword,
+    Deleted,
     Chat(User),
 }
 
@@ -26,6 +27,7 @@ impl ToString for Location {
             Location::Login => "Login".to_string(),
             Location::WrongPassword => "WrongPassword".to_string(),
             Location::Chat(user) => format!("Chat {}", user.nick),
+            Location::Deleted => "Deleted".to_string(),
         }
     }
 }
@@ -43,6 +45,7 @@ impl FromStr for Location {
                     nick: nick.to_string(),
                 }))
             }
+            "Deleted" => Ok(Location::Deleted),
             _ => Err(ChatError::CookieIssue),
         }
     }

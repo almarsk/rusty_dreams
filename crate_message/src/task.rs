@@ -34,4 +34,5 @@ pub enum LoginDirection {
 pub enum ServerTask {
     Message(Message),
     Deletion,
+    NewUser(String),
 }

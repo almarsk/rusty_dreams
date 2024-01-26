@@ -16,6 +16,7 @@ pub enum LoginResult {
     InternalError,
     NewUser(User),
     ReturningUser(User),
+    DeletedUser,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

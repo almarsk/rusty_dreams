@@ -18,11 +18,13 @@ function subscribe(uri) {
     events.addEventListener("message", (ev) => {
       const msg = JSON.parse(ev.data);
 
+      console.log(msg);
+
       if (
         Object.prototype.toString.call(msg) === "[object Object]" &&
         "Message" in msg
       ) {
-        console.log(msg);
+        //console.log(msg);
         if (!("message" in msg.Message)) return;
         addMessage(
           msg.Message.username,
@@ -30,9 +32,14 @@ function subscribe(uri) {
           msg.Message.date,
           msg.Message.deleted,
         );
-        // scroll down upon message
+      } else if (
+        Object.prototype.toString.call(msg) === "[object Object]" &&
+        "NewUser" in msg
+      ) {
+        console.log("new user");
+        getMannschaft();
       } else {
-        console.log("user deleted, lets go");
+        console.log("user deleted, updating");
         getHistory();
         getMannschaft();
       }
@@ -122,13 +129,13 @@ function addMessage(user, messageText, date, deleted) {
 
   var messageTime = document.createElement("span");
   messageTime.classList.add("message-time");
-  console.log(user, messageText, date, "deleted: " + deleted);
   messageTime.textContent = date;
   messageElement.appendChild(messageTime);
 
   var messageContent = document.createElement("span");
   messageContent.classList.add("message-content");
-  messageContent.textContent = user + ": " + messageText;
+  messageContent.textContent =
+    user + (deleted ? " [deleted]: " : ": ") + messageText;
   messageElement.appendChild(messageContent);
 
   var chatMessages = document.getElementById("chatMessages");
@@ -198,14 +205,22 @@ function getMannschaft() {
     method: "GET",
   }).then((response) => {
     response.json().then((data) => {
+      let should_logOff = true;
+
       data
         .filter((d) => d != "")
         .forEach((d, i) => {
+          if (d == usernameField.value.trim()) {
+            should_logOff = false;
+          }
           var option = document.createElement("option");
           option.value = "option" + (i + 1);
           option.text = d;
           dropdown.add(option);
         });
+
+      console.log("should log off:", should_logOff);
+      should_logOff ? logOff() : {};
     });
   });
 }

@@ -65,7 +65,7 @@
             }
 
             #flash-error {
-                display: none; /* Hidden by default */
+                display: block;
                 color: red;
                 text-align: center;
                 margin-top: 10px;
@@ -76,7 +76,7 @@
         <div class="login-container">
             <h2>Login</h2>
 
-            <div class="flash-error" id="flash-error">wrong password</div>
+            <div class="flash-error" id="flash-error">{{ issue }}</div>
 
             <form class="login-form" action="/login" method="post">
                 <div class="form-group">
@@ -93,21 +93,11 @@
                 <input type="hidden" name="form_type" value="login" />
             </form>
         </div>
-
         <script>
-            let wrongPassword = {{ wrongPass }}
-
-            document.addEventListener("DOMContentLoaded", function () {
-                if (wrongPassword) {
-                    document.getElementById("flash-error").style.display =
-                        "block";
-                }
-
-
-
-
-
-
+            window.addEventListener("beforeunload", function () {
+                // Reset the cookie here
+                document.cookie =
+                    "user_state=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
             });
         </script>
     </body>

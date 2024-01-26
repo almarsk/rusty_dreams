@@ -29,7 +29,10 @@ pub async fn check_login(login_attempt: LoginAttempt, lock: &Pool<Postgres>) -> 
             }
         }
         Ok(record) => {
-            log::info!("user exists, lets check if pass ok");
+            if record.deleted.unwrap_or_default() {
+                return LoginResult::DeletedUser;
+            }
+
             if let Some(db_pass) = record.pass {
                 if db_pass == pass {
                     log::info!("it is");

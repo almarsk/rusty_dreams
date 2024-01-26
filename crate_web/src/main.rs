@@ -76,6 +76,7 @@ async fn history(socket: &State<Stream>) -> Json<Vec<Message>> {
 
 #[get("/mannschaft")]
 async fn mannschaft(socket: &State<Stream>) -> Json<Vec<String>> {
+    log::info!("mschft rockt");
     // send message to be written into database
     let socket = &mut *socket.lock().await;
     if send_message(socket, Task::Mannschaft(Request))
@@ -93,6 +94,7 @@ async fn mannschaft(socket: &State<Stream>) -> Json<Vec<String>> {
             Ok(0) => Json(vec![]),
             Ok(_) => {
                 if let Ok(Task::Mannschaft(Response(m))) = bincode::deserialize::<Task>(&buffer) {
+                    log::info!("users: {:?}", m);
                     Json(m)
                 } else {
                     Json(vec![])
@@ -154,12 +156,18 @@ async fn events(queue: &State<Sender<ServerTask>>, mut end: Shutdown) -> EventSt
 }
 
 #[post("/login", data = "<form>")]
-async fn login(form: Form<LoginForm>, stream: &State<Stream>, jar: &CookieJar<'_>) -> Redirect {
+async fn login(
+    form: Form<LoginForm>,
+    stream: &State<Stream>,
+    jar: &CookieJar<'_>,
+    queue: &State<Sender<ServerTask>>,
+) -> Redirect {
     log::info!(
         "login request from {} with password {}",
         form.nick,
         form.pass
     );
+
     let login_result = auth::login_backend::backend_login(stream, form).await;
 
     jar.add(Cookie::build(("user_state", "LoggedIn")).same_site(SameSite::Strict));
@@ -174,10 +182,9 @@ async fn login(form: Form<LoginForm>, stream: &State<Stream>, jar: &CookieJar<'_
         InternalError => jar.add(
             Cookie::build(("user_state", Location::Login.to_string())).same_site(SameSite::Strict),
         ),
-
         NewUser(user) => {
             // push to users event stream
-            //
+            let _res = queue.send(ServerTask::NewUser(user.nick.clone()));
             jar.add(
                 Cookie::build(("user_state", Location::Chat(user).to_string()))
                     .same_site(SameSite::Strict),
@@ -186,6 +193,10 @@ async fn login(form: Form<LoginForm>, stream: &State<Stream>, jar: &CookieJar<'_
         }
         ReturningUser(user) => jar.add(
             Cookie::build(("user_state", Location::Chat(user).to_string()))
+                .same_site(SameSite::Strict),
+        ),
+        DeletedUser => jar.add(
+            Cookie::build(("user_state", Location::Deleted.to_string()))
                 .same_site(SameSite::Strict),
         ),
     }
@@ -207,14 +218,21 @@ async fn dispatcher(jar: &CookieJar<'_>) -> RawHtml<String> {
         Location::Login
     };
 
+    log::info!("{:?}", user_state);
+
     match user_state {
         Location::Login => {
             log::info!("reading login html");
-            dat.insert(String::from("wrongPass"), String::from("false"));
             handlebars::get_template(String::from("index"), Some(dat))
         }
         Location::WrongPassword => {
-            dat.insert(String::from("wrongPass"), String::from("true"));
+            log::info!("wron pass");
+            dat.insert(String::from("issue"), String::from("wrong password"));
+            handlebars::get_template(String::from("index"), Some(dat))
+        }
+        Location::Deleted => {
+            log::info!("del user");
+            dat.insert(String::from("issue"), String::from("deleted user"));
             handlebars::get_template(String::from("index"), Some(dat))
         }
         Location::Chat(user) => {
